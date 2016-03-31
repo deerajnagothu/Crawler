@@ -25,6 +25,6 @@ for i in range(5):
       pyautogui.moveTo(2560, 1440, duration=1)
       pyautogui.moveTo(100, 2560, duration=1)
 """
-browser=webdriver.Firefox()
+browser=webdriver.Chrome("C:\\Users\crawler\Desktop\Crawler\chromedriver.exe")
 browser.get('https://www.flipkart.com')
 clicker(1)
