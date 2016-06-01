@@ -19,14 +19,14 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
         return x[0]
 
 
-def get_tab_count(flag):
+def get_tab_data(flag, already_open):
     if flag == 1:
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
-        # browser.execute_script("window.open('','_blank');")
-        browser.switch_to.active_element
         print(browser.window_handles)
-        handle=browser.window_handles
-        browser.switch_to_window(handle[1])
+        handle = browser.window_handles
+        newly_opened_tab_handle = [ x for x in handle if x not in already_open]
+        print(newly_opened_tab_handle)
+        browser.switch_to_window(newly_opened_tab_handle[0])
         # browser.switch_to_window(new_tab)
         browser.get('chrome://memory')
         html = browser.page_source
@@ -45,8 +45,30 @@ def get_tab_count(flag):
             print("Total Memory:  "+html_get_value(each.find(jstcache="15")))
             print("Total Virtual Memory:  "+html_get_value(each.find(jstcache="17")))
             print("\n")
+    sleep(3)
     browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
-    browser.switch_to_window(handle[0])
+    sleep(2)
+    browser.switch_to_window(already_open[0])
+    browser.find_element_by_tag_name('body').send_keys(Keys.CONTROL + Keys.TAB)
+    sleep(1)
+    print("The window handle after TAB is : "+str(browser.current_window_handle))
+    check_tabs = browser.window_handles
+    for tab_num in range(len(check_tabs)-1,0,-1):
+        print("The tab going to be closed is : "+str(check_tabs[tab_num]))
+        sleep(2)
+        browser.switch_to_window(check_tabs[tab_num])
+        print("The current window handle is : "+str(browser.current_window_handle))
+        sleep(3)
+        print("THis is the URL of this page : "+str(browser.current_url))
+        sleep(3)
+        browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+        sleep(2)
+        print("Tab was closed an the remaining tabs are "+str(browser.window_handles))
+        sleep(2)
+
+
+    browser.switch_to_window(already_open[0])
+    print("Switched to the main handle")
     sleep(3)
     return 0
 
@@ -102,19 +124,25 @@ coordinates = []
 coordinates = generate_coordinates(width,height,coordinates)
 
 coordinates=generate_random_coordinates(coordinates)
-# browser=webdriver.Firefox()
-browser=webdriver.Chrome("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\chromedriver.exe")
+browser=webdriver.Chrome("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\chromedriver.exe") # change this according to the location of the "chromedriver.exe"
+#browser.get('https://www.amazon.com')
 browser.get('https://www.amazon.com')
 browser.maximize_window()
 main_window = browser.current_window_handle
-print("this is my main window"+str(main_window))
+print("this is my main window : "+str(main_window))
 
+#browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
+#second_window = browser.window_handles[1]
+#browser.switch_to_window(second_window)
+#browser.get('https://www.google.com')
 for coordinate in coordinates:
     clicked=clicker(coordinate)
-    get_tab_count(1)
-    # tab_check = open_new_tab(1)
-    # if tab_check is True:
-    #     tab_count = get_tab_count(1)
-    #     if tab_count == 0:
-    #         continue
-
+    sleep(2)
+    number_of_tabs = len(browser.window_handles)
+    if( number_of_tabs == 1):
+        sleep(1)
+        continue
+    else:
+        already_open = browser.window_handles
+        get_tab_data(1,already_open)
+        sleep(2)
