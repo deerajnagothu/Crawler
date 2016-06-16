@@ -1,7 +1,9 @@
 import pyautogui
 import random
+import os
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from time import sleep
 print(pyautogui.size())
@@ -19,7 +21,7 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
         return x[0]
 
 
-def get_tab_data(flag, already_open):
+def get_tab_data(flag, already_open): #
     if flag == 1:
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
         print(browser.window_handles)
@@ -28,7 +30,7 @@ def get_tab_data(flag, already_open):
         print(newly_opened_tab_handle)
         browser.switch_to_window(newly_opened_tab_handle[0])
         # browser.switch_to_window(new_tab)
-        browser.get('chrome://memory')
+        browser.get('chrome-extension://anahhlhjhcgloogjkbfeipcpaidoncef/popup.html')
         html = browser.page_source
         soup = BeautifulSoup(html, "html.parser")
         table = soup.find_all("tr", jsselect="child_data")
@@ -124,8 +126,14 @@ coordinates = []
 coordinates = generate_coordinates(width,height,coordinates)
 
 coordinates=generate_random_coordinates(coordinates)
-browser=webdriver.Chrome("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\chromedriver.exe") # change this according to the location of the "chromedriver.exe"
+path_to_chromedriver = "C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\chromedriver.exe"
+path_to_extension = "C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\process_monitor.crx"
+chrome_options = Options()
+chrome_options.add_extension("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\process_monitor.crx")
+
+browser=webdriver.Chrome("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\chromedriver.exe",chrome_options=chrome_options ) # change this according to the location of the "chromedriver.exe"
 #browser.get('https://www.amazon.com')
+
 browser.get('https://www.amazon.com')
 browser.maximize_window()
 main_window = browser.current_window_handle
@@ -146,3 +154,4 @@ for coordinate in coordinates:
         already_open = browser.window_handles
         get_tab_data(1,already_open)
         sleep(2)
+print("CRAWLING SUCCESSFULLY FINISHED !")
