@@ -6,6 +6,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from time import sleep
+from py2neo import Graph, Node, Relationship
+
 print(pyautogui.size())
 width, height = pyautogui.size()
 pyautogui.FAILSAFE = False
@@ -13,19 +15,18 @@ t = 75  # set a threshold value for origin points to click
 target = 'https://www.amazon.com'
 
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
-    x=list(html_line)
-    c=0
+    x = list(html_line)
     if len(x)==0:
         return "Nothing"
     else:
         return x[0]
 
-def get_tab_data(flag, already_open): #
+def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
     if flag == 1:
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
        # print(browser.window_handles)
         handle = browser.window_handles
-        newly_opened_tab_handle = [ x for x in handle if x not in already_open]
+        newly_opened_tab_handle = [x for x in handle if x not in already_open]
        # print(newly_opened_tab_handle)
         browser.switch_to_window(newly_opened_tab_handle[0])
         # browser.switch_to_window(new_tab)
@@ -48,7 +49,7 @@ def get_tab_data(flag, already_open): #
             print("JavaScript Memory is is "+x[7].get_text())
 
     sleep(3)
-    browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+    browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
     sleep(2)
     browser.switch_to_window(already_open[0])
     browser.find_element_by_tag_name('body').send_keys(Keys.CONTROL + Keys.TAB)
@@ -60,9 +61,9 @@ def get_tab_data(flag, already_open): #
         sleep(2)
         browser.switch_to_window(check_tabs[tab_num])
         print("The current window handle is : "+str(browser.current_window_handle))
-        sleep(2)
+        sleep(1)
         print("THis is the URL of this page : "+str(browser.current_url))
-        sleep(2)
+        sleep(1)
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
         sleep(2)
         print("Tab was closed an the remaining tabs are "+str(browser.window_handles))
@@ -74,6 +75,66 @@ def get_tab_data(flag, already_open): #
     sleep(3)
     return 0
 
+def get_initital_browser_data(flag,freshly_opened):           # You are working here trying to make a new function to get the initial data
+    if flag == 1:
+        browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
+       # print(browser.window_handles)
+        handle = browser.window_handles
+        print(handle)
+        newly_opened_tab_handle = [x for x in handle if x not in freshly_opened]
+       # print(newly_opened_tab_handle)
+        browser.switch_to_window(newly_opened_tab_handle[0])
+        # browser.switch_to_window(new_tab)
+        browser.get('chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html')
+        sleep(3)
+        pyautogui.keyDown('shift')
+        pyautogui.press('esc')
+        pyautogui.keyUp('shift')
+        x = pyautogui.size()
+        y = int(x[0]/2)
+        z = int(x[1]/2)
+        pyautogui.click(y, z, button='right' )
+        pyautogui.press('up')
+        pyautogui.press('up')
+        pyautogui.press('enter')
+        sleep(2)
+        html = browser.page_source
+        soup = BeautifulSoup(html, "html.parser")
+        print(html)
+        pyautogui.press('esc')
+        table = soup.find_all("tr")
+        details = []
+
+        for each in range(1, len(table)):
+            # print(table[each].find_all("td"))
+            x = table[each].find_all("td")
+            print("Chrome PID is " + x[0].get_text())
+            details.append(x[0].get_text())
+            print("PID is "+x[1].get_text())
+            details.append(x[1].get_text())
+            print("Type is "+x[2].get_text())
+            details.append(x[2].get_text())
+            print("CPU Utilisation is "+x[3].get_text())
+            details.append(x[3].get_text())
+            print("Network Consumption is "+x[4].get_text())
+            details.append(x[4].get_text())
+            print("Title is "+x[5].get_text())
+            text = str(x[5].get_text())
+            print(text)
+            q = text.index("title")
+            title = text[q+8:len(text)-3]
+            details.append(title)
+            print(title)
+            print("Private Memory is "+x[6].get_text())
+            details.append(x[6].get_text())
+            print("JavaScript Memory is "+x[7].get_text())
+            details.append(x[7].get_text())
+
+    sleep(3)
+    browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+    sleep(2)
+    browser.switch_to_window(freshly_opened[0])
+    return details
 
 def open_new_tab(flag):
     if flag == 1:
@@ -122,10 +183,16 @@ def clicker(coordinate):  # generate click event on a particular coordinate
     return True
 
 
-coordinates = []
-coordinates = generate_coordinates(width,height,coordinates)
 
-coordinates=generate_random_coordinates(coordinates)
+
+graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
+graph.delete_all() # Delete all the previous made nodes and relationship
+gp = graph.begin()
+
+coordinates = []
+coordinates = generate_coordinates(width, height, coordinates)   # generates coordinates based on the diff and the resolution
+
+coordinates=generate_random_coordinates(coordinates)  # already generated coordinates are shuffled randomly
 
 chrome_options = Options()
 chrome_options.add_extension("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\process_monitor.crx")
@@ -138,7 +205,14 @@ browser.get(target)
 browser.maximize_window()
 main_window = browser.current_window_handle
 print("This is my main window : "+str(main_window))
+freshly_opened = browser.window_handles
+print(freshly_opened)
+print(browser.current_window_handle)
 
+k = get_initital_browser_data(1,freshly_opened)
+print("Printing the Initial browser details")
+print(k[0:7])
+print(k[8:15])
 for coordinate in coordinates:
     clicked=clicker(coordinate)
     sleep(2)
