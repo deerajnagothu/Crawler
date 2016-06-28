@@ -207,6 +207,13 @@ def clicker(coordinate):  # generate click event on a particular coordinate
     return True
 
 
+def initial_draw_graph(details, gp):
+    k = len(details)
+    l = k/8
+    m = []
+    for each in details:
+        if each == "renderer":
+            m.append
 
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
@@ -236,6 +243,7 @@ print(browser.current_window_handle)
 k = get_initital_browser_data(1,freshly_opened)
 print("Printing the Initial browser details")
 print(k)
+print(len(k))
 
 for coordinate in coordinates:
     clicked=clicker(coordinate)
