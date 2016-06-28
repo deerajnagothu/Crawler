@@ -32,21 +32,46 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         # browser.switch_to_window(new_tab)
         browser.get('chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html')
         sleep(3)
+        pyautogui.keyDown('shift')
+        pyautogui.press('esc')
+        pyautogui.keyUp('shift')
+        x = pyautogui.size()
+        y = int(x[0]/2)
+        z = int(x[1]/2)
+        pyautogui.click(y, z, button='right' )
+        pyautogui.press('up')
+        pyautogui.press('up')
+        pyautogui.press('enter')
+        sleep(2)
         html = browser.page_source
         soup = BeautifulSoup(html, "html.parser")
-        table = soup.find_all("tr")
 
-        for each in range(0,len(table)):
-            print(table[each].find_all("td"))
+        pyautogui.press('esc')
+        table = soup.find_all("tr")
+        details = []
+
+        for each in range(1, len(table)):
+            # print(table[each].find_all("td"))
             x = table[each].find_all("td")
             print("Chrome PID is " + x[0].get_text())
+            details.append(x[0].get_text())
             print("PID is "+x[1].get_text())
+            details.append(x[1].get_text())
             print("Type is "+x[2].get_text())
+            details.append(x[2].get_text())
             print("CPU Utilisation is "+x[3].get_text())
+            details.append(x[3].get_text())
             print("Network Consumption is "+x[4].get_text())
+            details.append(x[4].get_text())
             print("Title is "+x[5].get_text())
+            text = str(x[5].get_text())
+            q = text.index("title")
+            title = text[q+8:len(text)-3]
+            details.append(title)
             print("Private Memory is "+x[6].get_text())
-            print("JavaScript Memory is is "+x[7].get_text())
+            details.append(x[6].get_text())
+            print("JavaScript Memory is "+x[7].get_text())
+            details.append(x[7].get_text())
 
     sleep(3)
     browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
@@ -97,10 +122,10 @@ def get_initital_browser_data(flag,freshly_opened):           # You are working 
         pyautogui.press('up')
         pyautogui.press('up')
         pyautogui.press('enter')
-        sleep(2)
+        sleep(3)
         html = browser.page_source
         soup = BeautifulSoup(html, "html.parser")
-        print(html)
+
         pyautogui.press('esc')
         table = soup.find_all("tr")
         details = []
@@ -120,15 +145,14 @@ def get_initital_browser_data(flag,freshly_opened):           # You are working 
             details.append(x[4].get_text())
             print("Title is "+x[5].get_text())
             text = str(x[5].get_text())
-            print(text)
             q = text.index("title")
             title = text[q+8:len(text)-3]
             details.append(title)
-            print(title)
             print("Private Memory is "+x[6].get_text())
             details.append(x[6].get_text())
             print("JavaScript Memory is "+x[7].get_text())
             details.append(x[7].get_text())
+            print(x[7].get_text())
 
     sleep(3)
     browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
@@ -211,8 +235,8 @@ print(browser.current_window_handle)
 
 k = get_initital_browser_data(1,freshly_opened)
 print("Printing the Initial browser details")
-print(k[0:7])
-print(k[8:15])
+print(k)
+
 for coordinate in coordinates:
     clicked=clicker(coordinate)
     sleep(2)
