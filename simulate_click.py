@@ -1,3 +1,4 @@
+# Author: Deeraj Nagothu, MS in ECE @Binghamton University
 import pyautogui
 import random
 import os
@@ -100,7 +101,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
     sleep(3)
     return 0
 
-def get_initital_browser_data(flag,freshly_opened):           # You are working here trying to make a new function to get the initial data
+def get_initital_browser_data(flag,freshly_opened):
     if flag == 1:
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
        # print(browser.window_handles)
@@ -198,7 +199,7 @@ def generate_random_coordinates(coordinates): # shuffle the coordinates to gener
 
 
 def clicker(coordinate):  # generate click event on a particular coordinate
-    x=coordinate
+    x = coordinate
     pyautogui.keyDown('ctrlleft')
     print(x)
     pyautogui.moveTo(x[0], x[1], duration=0.1)
@@ -208,13 +209,53 @@ def clicker(coordinate):  # generate click event on a particular coordinate
 
 
 def initial_draw_graph(details, gp):
-    k = len(details)
-    l = k/8
-    m = []
-    for each in details:
-        if each == "renderer":
-            m.append
 
+    # k = len(details)
+    # l = k/8
+    m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
+    extensions = []
+    plugins = []
+    # The following part is to create the Nodes
+    for x in m:
+        if x[2] == "browser":
+            print("the browser list is:")
+            print(x)
+            browser = Node("Browser", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            gp.create(browser)
+        elif x[2] == "gpu":
+            print("the gpu list is")
+            print(x)
+            gpu = Node("GPU", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            gp.create(gpu)
+        elif x[2] == "extension":
+            print("the extension list is")
+            print(x)
+            node = Node("Extension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            gp.create(node)
+            extensions.append(node)
+        elif x[2] == "renderer":
+            print("the renderer list is")
+            print(x)
+            main_tab = Node("Main Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            gp.create(main_tab)
+        elif x[2] == "plugin":
+            print("the plugin list is")
+            print(x)
+            node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            gp.create(node)
+            plugins.append(node)
+    # The following part is to create the relationship between the browser initial stage
+    rel1 = Relationship(main_tab,"GPU",gpu)
+    gp.create(rel1)
+    rel2 = Relationship(main_tab,"Browser",browser)
+    gp.create(rel2)
+    for each in extensions:
+        rel3 = Relationship(main_tab,"Extension",each)
+        gp.create(rel3)
+    for each in plugins:
+        rel4 = Relationship(main_tab, "Plugin", each)
+        gp.create(rel4)
+    gp.commit()
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
 graph.delete_all() # Delete all the previous made nodes and relationship
@@ -241,9 +282,12 @@ print(freshly_opened)
 print(browser.current_window_handle)
 
 k = get_initital_browser_data(1,freshly_opened)
-print("Printing the Initial browser details")
-print(k)
-print(len(k))
+print("printing the initial draw graph details !")
+initial_draw_graph(k, gp)
+
+# print("Printing the Initial browser details")
+# print(k)
+# print(len(k))
 
 for coordinate in coordinates:
     clicked=clicker(coordinate)
