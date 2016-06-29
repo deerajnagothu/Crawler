@@ -99,7 +99,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
     browser.switch_to_window(already_open[0])
     print("Switched to the main handle")
     sleep(3)
-    return 0
+    return details
 
 def get_initital_browser_data(flag,freshly_opened):
     if flag == 1:
@@ -209,12 +209,10 @@ def clicker(coordinate):  # generate click event on a particular coordinate
 
 
 def initial_draw_graph(details, gp):
-
-    # k = len(details)
-    # l = k/8
     m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
     extensions = []
     plugins = []
+    survivors = []
     # The following part is to create the Nodes
     for x in m:
         if x[2] == "browser":
@@ -222,28 +220,34 @@ def initial_draw_graph(details, gp):
             print(x)
             browser = Node("Browser", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(browser)
+            survivors.append(x[1])
         elif x[2] == "gpu":
             print("the gpu list is")
             print(x)
             gpu = Node("GPU", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(gpu)
+            survivors.append(x[1])
         elif x[2] == "extension":
             print("the extension list is")
             print(x)
             node = Node("Extension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(node)
             extensions.append(node)
+            if x[5] != "Extension: chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html":
+                survivors.append(x[1])
         elif x[2] == "renderer":
             print("the renderer list is")
             print(x)
             main_tab = Node("Main Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(main_tab)
+            survivors.append(x[1])
         elif x[2] == "plugin":
             print("the plugin list is")
             print(x)
             node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(node)
             plugins.append(node)
+            survivors.append(x[1])
     # The following part is to create the relationship between the browser initial stage
     rel1 = Relationship(main_tab,"GPU",gpu)
     gp.create(rel1)
@@ -256,6 +260,17 @@ def initial_draw_graph(details, gp):
         rel4 = Relationship(main_tab, "Plugin", each)
         gp.create(rel4)
     gp.commit()
+    return main_tab, survivors
+
+def draw_graph(main_tab, old_survivors, details):
+    m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
+    new_survivors = []
+    for each in m:
+        new_survivors.append(each[1])
+    print("New survivors are")
+    print(new_survivors)
+
+
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
 graph.delete_all() # Delete all the previous made nodes and relationship
@@ -281,13 +296,9 @@ freshly_opened = browser.window_handles
 print(freshly_opened)
 print(browser.current_window_handle)
 
-k = get_initital_browser_data(1,freshly_opened)
+initial_details = get_initital_browser_data(1,freshly_opened)
 print("printing the initial draw graph details !")
-initial_draw_graph(k, gp)
-
-# print("Printing the Initial browser details")
-# print(k)
-# print(len(k))
+main_tab, survivors = initial_draw_graph(initial_details, gp)
 
 for coordinate in coordinates:
     clicked=clicker(coordinate)
@@ -298,7 +309,8 @@ for coordinate in coordinates:
         continue
     else:
         already_open = browser.window_handles
-        get_tab_data(1,already_open)
+        details = get_tab_data(1,already_open)
+        draw_graph(main_tab, survivors, details)
         sleep(2)
 
 print("CRAWLING SUCCESSFULLY FINISHED !")
