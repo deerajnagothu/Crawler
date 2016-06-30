@@ -24,6 +24,7 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
 
 def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
     if flag == 1:
+        print("Entered the get tab data function")
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
        # print(browser.window_handles)
         handle = browser.window_handles
@@ -66,8 +67,17 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
             details.append(x[4].get_text())
             print("Title is "+x[5].get_text())
             text = str(x[5].get_text())
-            q = text.index("title")
-            title = text[q+8:len(text)-3]
+            print(text)
+            # q = text.index("title")
+            q = [i for i in range(len(text)) if text.startswith("title", i)]
+            print("the position is"+str(q))
+            if len(q) > 1:
+                title = text[q[1]+8:len(text)-3]
+                duplicate = True
+            else:
+                title = text[q[0]+8:len(text)-3]
+                duplicate = False
+            print("The final title is "+str(title))
             details.append(title)
             print("Private Memory is "+x[6].get_text())
             details.append(x[6].get_text())
@@ -88,7 +98,8 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         browser.switch_to_window(check_tabs[tab_num])
         print("The current window handle is : "+str(browser.current_window_handle))
         sleep(1)
-        print("THis is the URL of this page : "+str(browser.current_url))
+        url = browser.current_url
+        print("THis is the URL of this page : "+str(url))
         sleep(1)
         browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
         sleep(2)
@@ -99,7 +110,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
     browser.switch_to_window(already_open[0])
     print("Switched to the main handle")
     sleep(3)
-    return details
+    return details, url, duplicate
 
 def get_initital_browser_data(flag,freshly_opened):
     if flag == 1:
@@ -260,17 +271,37 @@ def initial_draw_graph(details, gp):
         rel4 = Relationship(main_tab, "Plugin", each)
         gp.create(rel4)
     gp.commit()
-    return main_tab, survivors
+    return main_tab, survivors, gp
 
-def draw_graph(main_tab, old_survivors, details):
-    m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
+def draw_graph(gp, main_tab, old_survivors, details, url, duplicate):
+    m = [details[x:x+8] for x in range(0, len(details), 8)]  # split the details list into sublist of 8
     new_survivors = []
     for each in m:
         new_survivors.append(each[1])
     print("New survivors are")
     print(new_survivors)
-
-
+    unique_survivors = [x for x in new_survivors if x not in old_survivors]
+    print("Unique new Processes are")
+    print(unique_survivors)
+    for x in m:
+        if x[2] == "renderer":
+            new_node = Node("New Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
+            gp.create(new_node)
+            connection = Relationship(main_tab, "New Link Opened", new_node)
+            gp.create(connection)
+    for x in m:
+        if x[1] in unique_survivors:
+            if x[2] == "plugin":
+                plugin_node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+                gp.create(plugin_node)
+                plugin_rel = Relationship(new_node, "Plugin", plugin_node)
+                gp.create(plugin_rel)
+            elif x[2] == "extension":
+                ext_node = Node("Extension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+                gp.create(ext_node)
+                ext_rel = Relationship(new_node, "Extension", ext_node)
+                gp.create(ext_rel)
+    gp.commit()
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
 graph.delete_all() # Delete all the previous made nodes and relationship
@@ -298,8 +329,8 @@ print(browser.current_window_handle)
 
 initial_details = get_initital_browser_data(1,freshly_opened)
 print("printing the initial draw graph details !")
-main_tab, survivors = initial_draw_graph(initial_details, gp)
-
+main_tab, survivors, gp = initial_draw_graph(initial_details, gp)
+gp = graph.begin()
 for coordinate in coordinates:
     clicked=clicker(coordinate)
     sleep(2)
@@ -309,8 +340,9 @@ for coordinate in coordinates:
         continue
     else:
         already_open = browser.window_handles
-        details = get_tab_data(1,already_open)
-        draw_graph(main_tab, survivors, details)
+        details, url, duplicate = get_tab_data(1,already_open)
+        draw_graph(gp, main_tab, survivors, details, url, duplicate)
+        gp = graph.begin()
         sleep(2)
 
 print("CRAWLING SUCCESSFULLY FINISHED !")
