@@ -13,7 +13,7 @@ print(pyautogui.size())
 width, height = pyautogui.size()
 pyautogui.FAILSAFE = False
 t = 75  # set a threshold value for origin points to click
-target = 'https://www.amazon.com'
+target = 'https://www.ebay.com'
 
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
@@ -25,7 +25,10 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
 def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
     if flag == 1:
         print("Entered the get tab data function")
-        browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
+        pyautogui.keyDown('ctrlleft')
+        pyautogui.keyDown('t')
+        pyautogui.keyUp('t')
+        pyautogui.keyUp('ctrlleft')
        # print(browser.window_handles)
         handle = browser.window_handles
         newly_opened_tab_handle = [x for x in handle if x not in already_open]
@@ -85,10 +88,18 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
             details.append(x[7].get_text())
 
     sleep(3)
-    browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
+  #  browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
+    pyautogui.keyDown('ctrlleft')
+    pyautogui.keyDown('w')
+    pyautogui.keyUp('w')
+    pyautogui.keyUp('ctrlleft')
     sleep(2)
     browser.switch_to_window(already_open[0])
-    browser.find_element_by_tag_name('body').send_keys(Keys.CONTROL + Keys.TAB)
+   # browser.find_element_by_tag_name('body').send_keys(Keys.CONTROL + Keys.TAB)
+    pyautogui.keyDown('ctrlleft')
+    pyautogui.keyDown('tab')
+    pyautogui.keyUp('tab')
+    pyautogui.keyUp('ctrlleft')
     sleep(1)
     print("The window handle after TAB is : "+str(browser.current_window_handle))
     check_tabs = browser.window_handles
@@ -101,7 +112,11 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         url = browser.current_url
         print("THis is the URL of this page : "+str(url))
         sleep(1)
-        browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+        # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+        pyautogui.keyDown('ctrlleft')
+        pyautogui.keyDown('w')
+        pyautogui.keyUp('w')
+        pyautogui.keyUp('ctrlleft')
         sleep(2)
         print("Tab was closed an the remaining tabs are "+str(browser.window_handles))
         sleep(2)
@@ -114,12 +129,16 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
 
 def get_initital_browser_data(flag,freshly_opened):
     if flag == 1:
-        browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
-       # print(browser.window_handles)
+       # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
+        pyautogui.keyDown('ctrlleft')
+        pyautogui.keyDown('t')
+        pyautogui.keyUp('t')
+        pyautogui.keyUp('ctrlleft')
+       #print(browser.window_handles)
         handle = browser.window_handles
         print(handle)
         newly_opened_tab_handle = [x for x in handle if x not in freshly_opened]
-       # print(newly_opened_tab_handle)
+        print(newly_opened_tab_handle)
         browser.switch_to_window(newly_opened_tab_handle[0])
         # browser.switch_to_window(new_tab)
         browser.get('chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html')
@@ -167,7 +186,11 @@ def get_initital_browser_data(flag,freshly_opened):
             print(x[7].get_text())
 
     sleep(3)
-    browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+    # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+    pyautogui.keyDown('ctrlleft')
+    pyautogui.keyDown('w')
+    pyautogui.keyUp('w')
+    pyautogui.keyUp('ctrlleft')
     sleep(2)
     browser.switch_to_window(freshly_opened[0])
     return details
