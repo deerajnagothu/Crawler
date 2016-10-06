@@ -34,24 +34,23 @@ class Service(service.Service):
          - service_args : A List of other command line options to pass to PhantomJS
          - log_path: Path for PhantomJS service to log to
         """
-        self.service_args= service_args
+        self.service_args = service_args
         if self.service_args is None:
             self.service_args = []
         else:
-            self.service_args=service_args[:]
+            self.service_args = service_args[:]
         if not log_path:
             log_path = "ghostdriver.log"
         if not self._args_contain("--cookies-file="):
-            self._cookie_temp_file = tempfile.mkstemp()[1]
+            self._cookie_temp_file_handle, self._cookie_temp_file = tempfile.mkstemp()
             self.service_args.append("--cookies-file=" + self._cookie_temp_file)
         else:
             self._cookie_temp_file = None
 
         service.Service.__init__(self, executable_path, port=port, log_file=open(log_path, 'w'))
 
-
     def _args_contain(self, arg):
-        return len(list(filter(lambda x:x.startswith(arg), self.service_args))) > 0
+        return len(list(filter(lambda x: x.startswith(arg), self.service_args))) > 0
 
     def command_line_args(self):
         return self.service_args + ["--webdriver=%d" % self.port]
@@ -65,4 +64,5 @@ class Service(service.Service):
 
     def send_remote_shutdown_command(self):
         if self._cookie_temp_file:
-          os.remove(self._cookie_temp_file)
+            os.close(self._cookie_temp_file_handle)
+            os.remove(self._cookie_temp_file)

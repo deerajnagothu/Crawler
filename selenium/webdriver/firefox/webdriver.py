@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 try:
     import http.client as http_client
 except ImportError:
@@ -47,38 +46,22 @@ class WebDriver(RemoteWebDriver):
 
     def __init__(self, firefox_profile=None, firefox_binary=None, timeout=30,
                  capabilities=None, proxy=None, executable_path="wires", firefox_options=None):
-        self.profile = firefox_profile
-        self.binary = firefox_binary
-        if firefox_options is None:
+        capabilities = capabilities or DesiredCapabilities.FIREFOX.copy()
 
-            if self.profile is None:
-                self.profile = FirefoxProfile()
+        self.profile = firefox_profile or FirefoxProfile()
+        self.profile.native_events_enabled = (
+            self.NATIVE_EVENTS_ALLOWED and self.profile.native_events_enabled)
 
-            self.profile.native_events_enabled = (
-                self.NATIVE_EVENTS_ALLOWED and self.profile.native_events_enabled)
+        self.binary = firefox_binary or capabilities.get("binary", FirefoxBinary())
 
-            if capabilities is None:
-                capabilities = DesiredCapabilities.FIREFOX
-
-            if self.binary is None:
-                self.binary = capabilities.get("binary") or FirefoxBinary()
-
-            firefox_options = Options()
-            firefox_options.binary_location = self.binary if isinstance(self.binary, basestring) else self.binary._get_firefox_start_cmd()
-            firefox_options.profile = self.profile
-        else:
-            if capabilities is None:
-                capabilities = firefox_options.to_capabilities()
-            else:
-                capabilities.update(firefox_options.to_capabilities())
+        self.options = firefox_options or Options()
+        self.options.binary_location = self.binary if isinstance(self.binary, basestring) else self.binary._start_cmd
+        self.options.profile = self.profile
+        capabilities.update(self.options.to_capabilities())
 
         # marionette
         if capabilities.get("marionette"):
-            self.binary = firefox_options.binary_location
-            if isinstance(firefox_options.binary_location, FirefoxBinary):
-                self.binary = firefox_options.binary_location._get_firefox_start_cmd()
-
-            self.service = Service(executable_path, firefox_binary=self.binary)
+            self.service = Service(executable_path, firefox_binary=self.options.binary_location)
             self.service.start()
 
             executor = FirefoxRemoteConnection(
@@ -93,19 +76,13 @@ class WebDriver(RemoteWebDriver):
             if proxy is not None:
                 proxy.add_to_capabilities(capabilities)
 
-            if self.binary is None:
-                self.binary = firefox_options.binary_location or FirefoxBinary()
-
-            if self.profile is None:
-                self.profile = firefox_options.profile or FirefoxProfile()
-
             executor = ExtensionConnection("127.0.0.1", self.profile,
                                            self.binary, timeout)
-            RemoteWebDriver.__init__(self,
+            RemoteWebDriver.__init__(
+                self,
                 command_executor=executor,
-            desired_capabilities=capabilities,
-            keep_alive=True)
-
+                desired_capabilities=capabilities,
+                keep_alive=True)
 
         self._is_remote = False
 
@@ -121,12 +98,12 @@ class WebDriver(RemoteWebDriver):
             self.service.stop()
         else:
             self.binary.kill()
-            try:
-                shutil.rmtree(self.profile.path)
-                if self.profile.tempfolder is not None:
-                    shutil.rmtree(self.profile.tempfolder)
-            except Exception as e:
-                print(str(e))
+        try:
+            shutil.rmtree(self.profile.path)
+            if self.profile.tempfolder is not None:
+                shutil.rmtree(self.profile.tempfolder)
+        except Exception as e:
+            print(str(e))
 
     @property
     def firefox_profile(self):

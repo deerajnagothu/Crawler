@@ -1,4 +1,5 @@
 # Author: Deeraj Nagothu, MS in ECE @Binghamton University
+# Internet Crawler
 import pyautogui
 import random
 import os
@@ -10,10 +11,10 @@ from time import sleep
 from py2neo import Graph, Node, Relationship
 
 print(pyautogui.size())
-width, height = pyautogui.size()
+width, height = pyautogui.size()  # get the resolution of the screen. Changes according to the system used
 pyautogui.FAILSAFE = False
 t = 75  # set a threshold value for origin points to click
-target = 'https://www.ebay.com'
+target = 'https://www.ebay.com' # taget website to crawl
 
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
@@ -46,6 +47,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         pyautogui.click(y, z, button='right' )
         pyautogui.press('up')
         pyautogui.press('up')
+      # pyautogui.press('up')
         pyautogui.press('enter')
         sleep(2)
         html = browser.page_source
@@ -150,6 +152,7 @@ def get_initital_browser_data(flag,freshly_opened):
         y = int(x[0]/2)
         z = int(x[1]/2)
         pyautogui.click(y, z, button='right' )
+        pyautogui.press('up')
         pyautogui.press('up')
         pyautogui.press('up')
         pyautogui.press('enter')
@@ -327,19 +330,21 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate):
     gp.commit()
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
-graph.delete_all() # Delete all the previous made nodes and relationship
+# graph.delete_all() # Delete all the previous made nodes and relationship
 gp = graph.begin()
 
 coordinates = []
 coordinates = generate_coordinates(width, height, coordinates)   # generates coordinates based on the diff and the resolution
 
-coordinates=generate_random_coordinates(coordinates)  # already generated coordinates are shuffled randomly
+coordinates = generate_random_coordinates(coordinates)  # already generated coordinates are shuffled randomly
 
 chrome_options = Options()
-chrome_options.add_extension("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\process_monitor.crx")
+chrome_options.add_extension(".\process_monitor.crx") # Adding the extension to chrome
 # chrome_options.add_extension("C:\\Users\crawler\Desktop\Crawler\process_monitor.crx")
-
-browser=webdriver.Chrome("C:\\Users\Deeraj Nagothu\Desktop\Github\Crawler\chromedriver.exe",chrome_options=chrome_options ) # change this according to the location of the "chromedriver.exe" and chrome options is to add the extension to the chrome as soon as it starts.
+chromium_path = ".\chrome-win32\chrome.exe"
+chrome_options.binary_location = chromium_path
+browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options ) # change this according to the location of the "chromedriver.exe" and chrome options is to add the extension to the chrome as soon as it starts.
+# browser = webdriver.Chrome()
 # browser=webdriver.Chrome("C:\\Users\crawler\Desktop\Crawler\chromedriver.exe",chrome_options=chrome_options )
 
 browser.get(target)
