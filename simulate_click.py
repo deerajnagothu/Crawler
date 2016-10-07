@@ -26,39 +26,47 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
 def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
     if flag == 1:
         print("Entered the get tab data function")
-        pyautogui.keyDown('ctrlleft')
+        pyautogui.keyDown('ctrlleft')      # ctrl+T combination to open new tab in the browser
         pyautogui.keyDown('t')
         pyautogui.keyUp('t')
         pyautogui.keyUp('ctrlleft')
-       # print(browser.window_handles)
-        handle = browser.window_handles
-        newly_opened_tab_handle = [x for x in handle if x not in already_open]
-       # print(newly_opened_tab_handle)
-        browser.switch_to_window(newly_opened_tab_handle[0])
-        # browser.switch_to_window(new_tab)
+        handle = browser.window_handles  # gives the list of handles in the browser representing each tab
+        newly_opened_tab_handle = [x for x in handle if x not in already_open]  # this gives the window handle which was opened as new tab.
+        browser.switch_to_window(newly_opened_tab_handle[0])  # moves the focus to new tab
+        # The below link changes with the browser.
+        # This can be obtained using the inspect element option in the extension
+        # This is generally just an extension popup, but opened as a new page in new tab so that
+        # it can be downloaded and parsed.
         browser.get('chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html')
         sleep(3)
-        pyautogui.keyDown('shift')
+        pyautogui.keyDown('shift')  # Shift+ESC option in chrome opens the task manager
         pyautogui.press('esc')
         pyautogui.keyUp('shift')
-        x = pyautogui.size()
+        x = pyautogui.size()  # Getting the size of the screen
+        # The task manager pops ip in the center of the screen. The Javascript Memory by default is not active.
+        # We need to make it active using the task manager option in right click.
+        #  Below the center of the screen is computed
+        # Those co-ordinates (x,y) is used to make a right click and make Javascript memory active.
         y = int(x[0]/2)
         z = int(x[1]/2)
         pyautogui.click(y, z, button='right' )
-        pyautogui.press('up')
+        pyautogui.press('up') # Used to select the Javascript memory from the menu
         pyautogui.press('up')
       # pyautogui.press('up')
         pyautogui.press('enter')
         sleep(2)
-        html = browser.page_source
-        soup = BeautifulSoup(html, "html.parser")
+        html = browser.page_source # get the page source to parse
+        soup = BeautifulSoup(html, "html.parser") # Parser used to get the data from the page
 
         pyautogui.press('esc')
-        table = soup.find_all("tr")
-        details = []
-
+        table = soup.find_all("tr") # The relevant data required is in a tabular column
+        details = [] # List to save all the data from the current browser state.
+        # The data collected is available from the extension used. The data is appended to the list created
+        # The type f data collected is local PID in chrome browser, system PID, Type of process, CPU consumption,
+        # network consumption, Title of the tab, Private tab memory and the Javascript memory
+        # The system PID is used to collect other relevant information about the tab process created.
+        # Google chrome uses instantiates different process for each tab created.
         for each in range(1, len(table)):
-            # print(table[each].find_all("td"))
             x = table[each].find_all("td")
             print("Chrome PID is " + x[0].get_text())
             details.append(x[0].get_text())
@@ -90,31 +98,36 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
             details.append(x[7].get_text())
 
     sleep(3)
-  #  browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
-    pyautogui.keyDown('ctrlleft')
+  # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
+    pyautogui.keyDown('ctrlleft') # CTRL+W is used to close the current focus tab which is extension popup
     pyautogui.keyDown('w')
     pyautogui.keyUp('w')
     pyautogui.keyUp('ctrlleft')
     sleep(2)
-    browser.switch_to_window(already_open[0])
-   # browser.find_element_by_tag_name('body').send_keys(Keys.CONTROL + Keys.TAB)
-    pyautogui.keyDown('ctrlleft')
+    browser.switch_to_window(already_open[0]) # The focus is required to be changed after the previous tab is closed
+# The list already_open consists of handles which where available before opening the tab which was closed here
+# The lists first element consists of the main browser initial tab. Here the focus was shifted to main tab.
+# The newly opened tab is still open. We have to close the new tab to proceed with the next link.
+
+    pyautogui.keyDown('ctrlleft') # Change the tab to the new tab opened on click
     pyautogui.keyDown('tab')
     pyautogui.keyUp('tab')
     pyautogui.keyUp('ctrlleft')
     sleep(1)
     print("The window handle after TAB is : "+str(browser.current_window_handle))
     check_tabs = browser.window_handles
-    for tab_num in range(len(check_tabs)-1,0,-1):
+    # Check to make sure that it is going to close the new tab instead of main tab.
+    # Checking will be done based on the window handles because we know the main handle.
+    for tab_num in range(len(check_tabs)-1, 0, -1):
         print("The tab going to be closed is : "+str(check_tabs[tab_num]))
         sleep(2)
         browser.switch_to_window(check_tabs[tab_num])
         print("The current window handle is : "+str(browser.current_window_handle))
         sleep(1)
-        url = browser.current_url
+        url = browser.current_url # Saving the url of the newly opened tab
         print("THis is the URL of this page : "+str(url))
         sleep(1)
-        # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
+        # Closing the tab after making sure about the handle which is going to be closed
         pyautogui.keyDown('ctrlleft')
         pyautogui.keyDown('w')
         pyautogui.keyUp('w')
@@ -124,19 +137,22 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         sleep(2)
 
 
-    browser.switch_to_window(already_open[0])
+    browser.switch_to_window(already_open[0]) # Switching back to the main tab.
+    # Now at this point there should be only one tab opened which is main default tab.
     print("Switched to the main handle")
     sleep(3)
     return details, url, duplicate
-
+# The following function has the same functionality as the above function. The below function is used to get the data
+# when the browser is started. This provides the initial information about the browser.
+# The separate function is made because the above function is triggered when a new tab opened was deteceted.
+# But in the initial case there wont be any new tab opened. That's why a new function was required.
+# The below function consists of the same feature except that there wont be a newly opened link to close.
 def get_initital_browser_data(flag,freshly_opened):
     if flag == 1:
-       # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "t")
         pyautogui.keyDown('ctrlleft')
         pyautogui.keyDown('t')
         pyautogui.keyUp('t')
         pyautogui.keyUp('ctrlleft')
-       #print(browser.window_handles)
         handle = browser.window_handles
         print(handle)
         newly_opened_tab_handle = [x for x in handle if x not in freshly_opened]
@@ -189,7 +205,6 @@ def get_initital_browser_data(flag,freshly_opened):
             print(x[7].get_text())
 
     sleep(3)
-    # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w")
     pyautogui.keyDown('ctrlleft')
     pyautogui.keyDown('w')
     pyautogui.keyUp('w')
@@ -207,7 +222,7 @@ def open_new_tab(flag):
 def generate_coordinates(width, height, coordinates): # use the dimensions of the screen and generate coordinates(x,y) based on a threshold value
     difference=100
     for i in range(75, width, difference):
-        for j in range(75, height, difference):
+        for j in range(75, height, difference): # 75 and 100 are used like a threshold difference which can change
             coordinates.append(i)
             coordinates.append(j)
     temp=[]
@@ -218,7 +233,7 @@ def generate_coordinates(width, height, coordinates): # use the dimensions of th
             temp.append(coordinates[i+1])
             temp_coordinates.append(temp)
             temp=[]
-    coordinates=temp_coordinates
+    coordinates = temp_coordinates
     return coordinates
 
 
@@ -239,14 +254,15 @@ def clicker(coordinate):  # generate click event on a particular coordinate
     x = coordinate
     pyautogui.keyDown('ctrlleft')
     print(x)
-    pyautogui.moveTo(x[0], x[1], duration=0.1)
+    pyautogui.moveTo(x[0], x[1], duration=0.1) # This duration specifies how speed the mouse travels
     pyautogui.click(x[0], x[1])
     pyautogui.keyUp('ctrlleft')
     return True
 
-
+# This function is called when there is data collected about the initial status of the browser
 def initial_draw_graph(details, gp):
     m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
+# Categorized such that each of them can be made as nodes and then later relationships can be established
     extensions = []
     plugins = []
     survivors = []
@@ -255,9 +271,10 @@ def initial_draw_graph(details, gp):
         if x[2] == "browser":
             print("the browser list is:")
             print(x)
+            # This feeds the info into the Node
             browser = Node("Browser", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-            gp.create(browser)
-            survivors.append(x[1])
+            gp.create(browser)  # creates the Node with the data
+            survivors.append(x[1]) # appends the current PID to the survivors list
         elif x[2] == "gpu":
             print("the gpu list is")
             print(x)
@@ -296,9 +313,9 @@ def initial_draw_graph(details, gp):
     for each in plugins:
         rel4 = Relationship(main_tab, "Plugin", each)
         gp.create(rel4)
-    gp.commit()
+    gp.commit() # Commit writes the changes made to the database
     return main_tab, survivors, gp
-
+# The following function has the same functionality as above, but this is used when there is a new tab opened
 def draw_graph(gp, main_tab, old_survivors, details, url, duplicate):
     m = [details[x:x+8] for x in range(0, len(details), 8)]  # split the details list into sublist of 8
     new_survivors = []
@@ -333,7 +350,7 @@ graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202'
 # graph.delete_all() # Delete all the previous made nodes and relationship
 gp = graph.begin()
 
-coordinates = []
+coordinates = [] # create the list for coordinates
 coordinates = generate_coordinates(width, height, coordinates)   # generates coordinates based on the diff and the resolution
 
 coordinates = generate_random_coordinates(coordinates)  # already generated coordinates are shuffled randomly
@@ -341,24 +358,31 @@ coordinates = generate_random_coordinates(coordinates)  # already generated coor
 chrome_options = Options()
 chrome_options.add_extension(".\process_monitor.crx") # Adding the extension to chrome
 # chrome_options.add_extension("C:\\Users\crawler\Desktop\Crawler\process_monitor.crx")
-chromium_path = ".\chrome-win32\chrome.exe"
+chromium_path = ".\chrome-win32\chrome.exe" # Use the portable chromium browser
+# If chromium browser is not required then by removing the above chromium path, it will start using the default one
+# The default will be developer google chrome.
+# ONly Dev channel google chrome can support the extension used here. This extension used a particular API.
+# The API used is "chrome.processes" and it is available only in the chrome dev-channel and chromium browser
 chrome_options.binary_location = chromium_path
-browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options ) # change this according to the location of the "chromedriver.exe" and chrome options is to add the extension to the chrome as soon as it starts.
-# browser = webdriver.Chrome()
-# browser=webdriver.Chrome("C:\\Users\crawler\Desktop\Crawler\chromedriver.exe",chrome_options=chrome_options )
 
-browser.get(target)
-browser.maximize_window()
-main_window = browser.current_window_handle
+browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options )
+# chrome options is to add the extension to the chrome as soon as it starts.
+
+browser.get(target) # This open the target website
+browser.maximize_window() # By default the window is not maximised. This maximises the window
+main_window = browser.current_window_handle # Get the main handle for the target website tab
 print("This is my main window : "+str(main_window))
-freshly_opened = browser.window_handles
+freshly_opened = browser.window_handles # Get all the handles
 print(freshly_opened)
 print(browser.current_window_handle)
-
+# Start Crawling
 initial_details = get_initital_browser_data(1,freshly_opened)
 print("printing the initial draw graph details !")
-main_tab, survivors, gp = initial_draw_graph(initial_details, gp)
+
+main_tab, survivors, gp = initial_draw_graph(initial_details, gp) # Makes the initial Node for main tab
 gp = graph.begin()
+
+# Each coordinate is sent in loop and crawled
 for coordinate in coordinates:
     clicked=clicker(coordinate)
     sleep(2)
@@ -369,7 +393,7 @@ for coordinate in coordinates:
     else:
         already_open = browser.window_handles
         details, url, duplicate = get_tab_data(1,already_open)
-        draw_graph(gp, main_tab, survivors, details, url, duplicate)
+        draw_graph(gp, main_tab, survivors, details, url, duplicate) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
 
