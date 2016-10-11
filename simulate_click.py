@@ -125,6 +125,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         print("The current window handle is : "+str(browser.current_window_handle))
         sleep(1)
         url = browser.current_url # Saving the url of the newly opened tab
+        print("#################################################################################################")
         print("THis is the URL of this page : "+str(url))
         sleep(1)
         # Closing the tab after making sure about the handle which is going to be closed
@@ -284,7 +285,7 @@ def initial_draw_graph(details, gp):
         elif x[2] == "extension":
             print("the extension list is")
             print(x)
-            node = Node("Extension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            node = Node("iExtension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(node)
             extensions.append(node)
             if x[5] != "Extension: chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html":
@@ -292,13 +293,14 @@ def initial_draw_graph(details, gp):
         elif x[2] == "renderer":
             print("the renderer list is")
             print(x)
-            main_tab = Node("Main Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            main_tab = Node("Main_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            main_tab_pid = x[1]
             gp.create(main_tab)
             survivors.append(x[1])
         elif x[2] == "plugin":
             print("the plugin list is")
             print(x)
-            node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            node = Node("iPlugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             gp.create(node)
             plugins.append(node)
             survivors.append(x[1])
@@ -308,15 +310,19 @@ def initial_draw_graph(details, gp):
     rel2 = Relationship(main_tab,"Browser",browser)
     gp.create(rel2)
     for each in extensions:
-        rel3 = Relationship(main_tab,"Extension",each)
+        rel3 = Relationship(main_tab,"Initial Extension",each)
         gp.create(rel3)
     for each in plugins:
-        rel4 = Relationship(main_tab, "Plugin", each)
+        rel4 = Relationship(main_tab, "Initial Plugin", each)
         gp.create(rel4)
     gp.commit() # Commit writes the changes made to the database
-    return main_tab, survivors, gp
+    return main_tab, survivors, gp, main_tab_pid
+# The main tab pid is required because everytime there is a new tab opened the initial details of the main tab are
+# re-recorded as a new node. There are new nodes with the same url. Using this as reference there wont be any
+# new node with the same PID created.
+
 # The following function has the same functionality as above, but this is used when there is a new tab opened
-def draw_graph(gp, main_tab, old_survivors, details, url, duplicate):
+def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pid):
     m = [details[x:x+8] for x in range(0, len(details), 8)]  # split the details list into sublist of 8
     new_survivors = []
     for each in m:
@@ -327,13 +333,15 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate):
     print("Unique new Processes are")
     print(unique_survivors)
     for x in m:
-        if x[2] == "renderer":
-            new_node = Node("New Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
+        if x[2] == "renderer" and x[1] != main_tab_pid: # comparing so that there is no duplicate of the main tab
+            new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
+            print("printing url again")
+            print(url)
             gp.create(new_node)
             connection = Relationship(main_tab, "New Link Opened", new_node)
             gp.create(connection)
     for x in m:
-        if x[1] in unique_survivors:
+        if x[1] in unique_survivors and new_node is not None:
             if x[2] == "plugin":
                 plugin_node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
                 gp.create(plugin_node)
@@ -347,7 +355,7 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate):
     gp.commit()
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
-# graph.delete_all() # Delete all the previous made nodes and relationship
+graph.delete_all() # Delete all the previous made nodes and relationship
 gp = graph.begin()
 
 coordinates = [] # create the list for coordinates
@@ -379,7 +387,7 @@ print(browser.current_window_handle)
 initial_details = get_initital_browser_data(1,freshly_opened)
 print("printing the initial draw graph details !")
 
-main_tab, survivors, gp = initial_draw_graph(initial_details, gp) # Makes the initial Node for main tab
+main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp) # Makes the initial Node for main tab
 gp = graph.begin()
 
 # Each coordinate is sent in loop and crawled
@@ -392,8 +400,8 @@ for coordinate in coordinates:
         continue
     else:
         already_open = browser.window_handles
-        details, url, duplicate = get_tab_data(1,already_open)
-        draw_graph(gp, main_tab, survivors, details, url, duplicate) # adds the nodes to the main node created
+        details, url, duplicate = get_tab_data(1, already_open)
+        draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
 
