@@ -46,7 +46,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         # The task manager pops ip in the center of the screen. The Javascript Memory by default is not active.
         # We need to make it active using the task manager option in right click.
         #  Below the center of the screen is computed
-        # Those co-ordinates (x,y) is used to make a right click and make Javascript memory active.
+        # Those co-ordinates (y,z) is used to make a right click and make Javascript memory active.
         y = int(x[0]/2)
         z = int(x[1]/2)
         pyautogui.click(y, z, button='right' )

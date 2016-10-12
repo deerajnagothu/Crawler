@@ -1,0 +1,27 @@
+1) History file records the hopping websites also. It is difficult to record the websites which show up 
+   during the transition from one website to other. The task would be to find the History file dynamically 
+   while crawling or use CTRL+H and access chrome://history file and get the data from it. This is less 
+   reliable task. The more efficient way to do it is to use the proxy. 
+   PROXY can record each and every web request made and later this recorded data can be used to create the 
+   Hopping nodes from the target website to the destination website.
+
+2) Forming a linked clone tree. While a crawling is browsing through the website, a snapshot of the current 
+   virtual machine state can be made and  a linked clone of that particular snapshot is made. This newly made
+   linked clone can continue to crawl from the one of the link which the base crawler already opened. It would 
+   be like crawling levels after levels. The problem with snapshots in vshphere is that  it saves the whole 
+   disk instead of just the change. 
+
+3) While making clicks on the webpage, while hovering over the menu's there is a dropdpwn menu. This dropdpwn 
+   menu also consists of links and might interfere with the basic crawling. Task would be to detect any drop down 
+   menu and make the clicks accordingly.
+
+4) Identification of two similar links or similar webpages. Accessing the page and downloading the page content and 
+   making a "Text Summary", saving this text summary in the graph database and matching it with other nodes. This text
+   summary is mostly similar with similar webpages.
+
+5) Two modes of similarity can be implemented to find similar links/webpages. To reduce the consumption of space by
+   storing each and every webpage data, we can first check the level of similarity in the link. There can be a certain 
+   threshold to check the similarity. If it has more level of similarity, then it can be directly said as similar website.
+   But if the similarity is average, like 60-80% then in that case we can dive deeper and download the webpage content and
+   check again for similarity. There are many softwares to test the similarity between the texts or can count the number of
+   words in the page. 
