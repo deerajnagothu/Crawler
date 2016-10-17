@@ -1,0 +1,5 @@
+1. The possibility of detecting the crawler as a bot is Heatmap. The attacker can detect my clicking activity and 
+   might conclude that crawler is a bot.
+
+2. "Captcha" is another thing which can detect crawler. The crawler will click continuously even if there is a captcha
+   alert. 

@@ -25,3 +25,5 @@
    But if the similarity is average, like 60-80% then in that case we can dive deeper and download the webpage content and
    check again for similarity. There are many softwares to test the similarity between the texts or can count the number of
    words in the page. 
+
+6) Design the system calls monitoring system for windows.

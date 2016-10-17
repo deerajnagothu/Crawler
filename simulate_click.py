@@ -25,6 +25,7 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
 
 def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
     if flag == 1:
+        duplicate = 0 # declaring the default value for tab having similar PID detection
         print("Entered the get tab data function")
         pyautogui.keyDown('ctrlleft')      # ctrl+T combination to open new tab in the browser
         pyautogui.keyDown('t')
@@ -82,16 +83,21 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
             text = str(x[5].get_text())
             print(text)
             # q = text.index("title")
+            # The new tab can have a unique process or use the same PID as the main tab. If it is using the same as
+            # main tab, then the tiles of both main tab and new tab are in the same list. The below parameter "q"
+            # records the titles in list, and later this can be used to detect the duplication of PID by new tab.
+
             q = [i for i in range(len(text)) if text.startswith("title", i)]
             print("the position is"+str(q))
-            if len(q) > 1:
-                title = text[q[1]+8:len(text)-3]
-                duplicate = True
-            else:
-                title = text[q[0]+8:len(text)-3]
-                duplicate = False
+            if len(q) > 1:                              # sometimes the new tab uses the same PID as the parent tab.
+                title = text[q[1]+8:len(text)-3]        # Whenever it does that, the child node is created with the same
+                duplicate = 1                           # PID as the parent. The "duplicate" parameter is used to
+            else:                                       # detect if the particular new tab has a unique PID or it is
+                title = text[q[0]+8:len(text)-3]        # using the same as main tab PID.
+
             print("The final title is "+str(title))
             details.append(title)
+
             print("Private Memory is "+x[6].get_text())
             details.append(x[6].get_text())
             print("JavaScript Memory is "+x[7].get_text())
@@ -332,9 +338,22 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
     unique_survivors = [x for x in new_survivors if x not in old_survivors]
     print("Unique new Processes are")
     print(unique_survivors)
+    print("the main tab PID is ", main_tab_pid)
+    print("Duplication is ", duplicate)
     for x in m:
+        if x[2] == "renderer" and x[1] == main_tab_pid and duplicate == 1:
+            # comparing so that there is no duplicate of the main tab
+            # the duplicate parameter makes sure that the child tab with same pid as parent is created.
+            new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
+            print(new_node)
+            print("printing url again")
+            print(url)
+            gp.create(new_node)
+            connection = Relationship(main_tab, "New Link Opened", new_node)
+            gp.create(connection)
         if x[2] == "renderer" and x[1] != main_tab_pid: # comparing so that there is no duplicate of the main tab
             new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
+            print(new_node)
             print("printing url again")
             print(url)
             gp.create(new_node)
@@ -389,10 +408,17 @@ print("printing the initial draw graph details !")
 
 main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp) # Makes the initial Node for main tab
 gp = graph.begin()
+maintab_url = browser.current_url # comparing if the crawler target is still the same else was there any change
 
 # Each coordinate is sent in loop and crawled
 for coordinate in coordinates:
-    clicked=clicker(coordinate)
+    check_main_url = browser.current_url
+
+    if check_main_url == maintab_url: # If the target is still not same then it will reload again and crawl resumes
+        clicked = clicker(coordinate)
+    else:
+        browser.get(target)
+        continue
     sleep(2)
     number_of_tabs = len(browser.window_handles)
     if( number_of_tabs == 1):
