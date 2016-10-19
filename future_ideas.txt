@@ -27,3 +27,7 @@
    words in the page. 
 
 6) Design the system calls monitoring system for windows.
+
+7) Monitoring the systems PIDs during the crawl along with the PIDs of the tabs being created. This helps in checking 
+   if there is any new process created during the browsing. Since the crawling is done on a clean VM, there is very low 
+   probability that a new system process can begin considering only Crawling is going on.
