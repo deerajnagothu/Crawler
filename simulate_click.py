@@ -21,7 +21,9 @@ target = 'https://www.ebay.com' # taget website to crawl
 delete_graph_history = "yes"
 database = "localhost"
 zoom_level = 4
+remote_crawler = "no"
 
+#####################################################
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
     if len(x)==0:
@@ -184,6 +186,8 @@ def get_initital_browser_data(flag,freshly_opened):
         pyautogui.press('up')
         pyautogui.press('up')
         pyautogui.press('up')
+        if remote_crawler == "yes":
+            pyautogui.press('up')
         pyautogui.press('enter')
         sleep(3)
         html = browser.page_source
