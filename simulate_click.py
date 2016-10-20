@@ -13,8 +13,13 @@ from py2neo import Graph, Node, Relationship
 print(pyautogui.size())
 width, height = pyautogui.size()  # get the resolution of the screen. Changes according to the system used
 pyautogui.FAILSAFE = False
+
+################ PARAMETRS ######################
+
 t = 75  # set a threshold value for origin points to click
 target = 'https://www.ebay.com' # taget website to crawl
+delete_graph_history = "yes"
+
 
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
@@ -265,7 +270,14 @@ def clicker(coordinate):  # generate click event on a particular coordinate
     pyautogui.click(x[0], x[1])
     pyautogui.keyUp('ctrlleft')
     return True
-
+def zoom_out(scale):
+    pyautogui.keyDown('ctrlleft')
+    for x in range(0,scale):
+        print("zooming out")
+        pyautogui.keyDown('-')
+    pyautogui.keyUp('-')
+    pyautogui.keyUp('ctrlleft')
+    return True
 # This function is called when there is data collected about the initial status of the browser
 def initial_draw_graph(details, gp):
     m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
@@ -374,7 +386,9 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
     gp.commit()
 
 graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
-graph.delete_all() # Delete all the previous made nodes and relationship
+if delete_graph_history == "yes":
+    graph.delete_all() # Delete all the previous made nodes and relationship
+
 gp = graph.begin()
 
 coordinates = [] # create the list for coordinates
@@ -397,6 +411,10 @@ browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options )
 
 browser.get(target) # This open the target website
 browser.maximize_window() # By default the window is not maximised. This maximises the window
+sleep(2)
+print("Starting to zoom out")
+zoom_out(5)
+sleep((2))
 main_window = browser.current_window_handle # Get the main handle for the target website tab
 print("This is my main window : "+str(main_window))
 freshly_opened = browser.window_handles # Get all the handles
