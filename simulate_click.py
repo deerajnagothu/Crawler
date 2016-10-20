@@ -19,7 +19,8 @@ pyautogui.FAILSAFE = False
 t = 75  # set a threshold value for origin points to click
 target = 'https://www.ebay.com' # taget website to crawl
 delete_graph_history = "yes"
-
+database = "localhost"
+zoom_level = 4
 
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
@@ -385,7 +386,8 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
                 gp.create(ext_rel)
     gp.commit()
 
-graph = Graph("http://localhost:7474/db/data/", user='neo4j', password='cns2202') # connect to the local graph database
+graph_database_location = "http://"+database+":7474/db/data/"
+graph = Graph(graph_database_location, user='neo4j', password='cns2202') # connect to the local graph database
 if delete_graph_history == "yes":
     graph.delete_all() # Delete all the previous made nodes and relationship
 
@@ -413,7 +415,7 @@ browser.get(target) # This open the target website
 browser.maximize_window() # By default the window is not maximised. This maximises the window
 sleep(2)
 print("Starting to zoom out")
-zoom_out(5)
+zoom_out(zoom_level)
 sleep((2))
 main_window = browser.current_window_handle # Get the main handle for the target website tab
 print("This is my main window : "+str(main_window))
