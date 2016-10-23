@@ -17,7 +17,7 @@ pyautogui.FAILSAFE = False
 ################ PARAMETRS ######################
 
 t = 75  # set a threshold value for origin points to click
-target = 'https://www.ebay.com' # taget website to crawl
+target = 'http://www.pandora.com' # taget website to crawl
 delete_graph_history = "yes"
 database = "localhost"
 zoom_level = 4
@@ -328,10 +328,12 @@ def initial_draw_graph(details, gp):
             plugins.append(node)
             survivors.append(x[1])
     # The following part is to create the relationship between the browser initial stage
-    rel1 = Relationship(main_tab,"GPU",gpu)
-    gp.create(rel1)
-    rel2 = Relationship(main_tab,"Browser",browser)
-    gp.create(rel2)
+    if gpu is not None:
+        rel1 = Relationship(main_tab,"GPU",gpu)
+        gp.create(rel1)
+    if browser is not None:
+        rel2 = Relationship(main_tab,"Browser",browser)
+        gp.create(rel2)
     for each in extensions:
         rel3 = Relationship(main_tab,"Initial Extension",each)
         gp.create(rel3)

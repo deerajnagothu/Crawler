@@ -3,7 +3,8 @@
    while crawling or use CTRL+H and access chrome://history file and get the data from it. This is less 
    reliable task. The more efficient way to do it is to use the proxy. 
    PROXY can record each and every web request made and later this recorded data can be used to create the 
-   Hopping nodes from the target website to the destination website.
+   Hopping nodes from the target website to the destination website. This proxy can also see if there is any 
+   information which is being stolen from the client by the server.
 
 2) Forming a linked clone tree. While a crawling is browsing through the website, a snapshot of the current 
    virtual machine state can be made and  a linked clone of that particular snapshot is made. This newly made
