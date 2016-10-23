@@ -17,8 +17,8 @@ pyautogui.FAILSAFE = False
 ################ PARAMETRS ######################
 
 t = 75  # set a threshold value for origin points to click
-target = 'http://www.pandora.com' # taget website to crawl
-delete_graph_history = "yes"
+target = 'http://www.amazon.com' # taget website to crawl
+delete_graph_history = "no"
 database = "localhost"
 zoom_level = 4
 remote_crawler = "no"
@@ -290,6 +290,10 @@ def initial_draw_graph(details, gp):
     extensions = []
     plugins = []
     survivors = []
+    gpu = None # initial declaration
+    browser = None
+    main_tab = None
+
     # The following part is to create the Nodes
     for x in m:
         if x[2] == "browser":
