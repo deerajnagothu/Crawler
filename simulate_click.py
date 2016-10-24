@@ -87,6 +87,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
             details.append(x[3].get_text())
             print("Network Consumption is "+x[4].get_text())
             details.append(x[4].get_text())
+            print(x[5].get_text())
             print("Title is "+x[5].get_text())
             text = str(x[5].get_text())
             print(text)
@@ -188,6 +189,10 @@ def get_initital_browser_data(flag,freshly_opened):
         pyautogui.press('up')
         if remote_crawler == "yes":
             pyautogui.press('up')
+            pyautogui.press('up')
+            pyautogui.press('up')
+            pyautogui.press('up')
+            pyautogui.press('up')
         pyautogui.press('enter')
         sleep(3)
         html = browser.page_source
@@ -280,6 +285,7 @@ def zoom_out(scale):
     for x in range(0,scale):
         print("zooming out")
         pyautogui.keyDown('-')
+        sleep(1)
     pyautogui.keyUp('-')
     pyautogui.keyUp('ctrlleft')
     return True
