@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from time import sleep
 from py2neo import Graph, Node, Relationship
+from datetime import datetime
 
 print(pyautogui.size())
 width, height = pyautogui.size()  # get the resolution of the screen. Changes according to the system used
@@ -23,8 +24,8 @@ database = "localhost"
 remote_crawler = "no"
 zoom_level = 4
 #####################################################
-def get_crawler_name(type):
-    if type == "yes":
+def get_crawler_name(type): # this will check if the code is running in the remote machine or local
+    if type == "yes":       # this is used to name which crawler is actually generating the nodes
         name = sys.argv[1]
     else:
         name = "local-computer"
@@ -294,6 +295,17 @@ def zoom_out(scale):
     pyautogui.keyUp('ctrlleft')
     return True
 # This function is called when there is data collected about the initial status of the browser
+def crawling_completed(main_tab, gp):
+    complete_graph = None
+    crawler = get_crawler_name(remote_crawler)
+    text = "Crawling completed by"+crawler
+    complete_graph = Node("Completed", details = text)
+    gp.create(complete_graph)
+    if complete_graph is not None:
+        rel = Relationship(main_tab, "Crawing Complete", complete_graph)
+        gp.create(rel)
+    return True
+
 def initial_draw_graph(details, gp):
     m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
 # Categorized such that each of them can be made as nodes and then later relationships can be established
@@ -303,7 +315,8 @@ def initial_draw_graph(details, gp):
     gpu = None # initial declaration
     browser = None
     main_tab = None
-    crawler_name = get_crawler_name(remote_crawler)
+    crawler_name = get_crawler_name(remote_crawler) # get the system name
+    timer = str(datetime.now())
 
     # The following part is to create the Nodes
     for x in m:
@@ -331,7 +344,7 @@ def initial_draw_graph(details, gp):
         elif x[2] == "renderer":
             print("the renderer list is")
             print(x)
-            main_tab = Node("Main_Tab",Crawler=crawler_name ,name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            main_tab = Node("Main_Tab",Crawler=crawler_name, time=timer, name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             main_tab_pid = x[1]
             gp.create(main_tab)
             survivors.append(x[1])
@@ -472,5 +485,6 @@ for coordinate in coordinates:
         draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
-
-print("CRAWLING SUCCESSFULLY FINISHED !")
+done = crawling_completed(main_tab,gp)
+if done is True:
+    print("CRAWLING SUCCESSFULLY FINISHED !")

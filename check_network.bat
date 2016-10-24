@@ -5,5 +5,9 @@ PING -n 1 www.google.com | find "Reply from " >NUL
 IF NOT ERRORLEVEL 1 goto :SUCCESS
 IF     ERRORLEVEL 1 goto :TRYAGAIN
 :SUCCESS
-python .\simulate_click.py %ComputerName%
+python .\simulate_click.py %ComputerName% | find "CRAWLING SUCCESSFULLY FINISHED !" >NUL
+IF NOT ERRORLEVEL 1 goto :DONE
+
+:DONE
+shutdown.exe /s /t 00
 pause
