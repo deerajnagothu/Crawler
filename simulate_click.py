@@ -2,7 +2,7 @@
 # Internet Crawler
 import pyautogui
 import random
-import os
+import sys
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -23,6 +23,12 @@ database = "localhost"
 remote_crawler = "no"
 zoom_level = 4
 #####################################################
+def get_crawler_name(type):
+    if type == "yes":
+        name = sys.argv[1]
+    else:
+        name = "local-computer"
+    return name
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
     if len(x)==0:
@@ -297,6 +303,7 @@ def initial_draw_graph(details, gp):
     gpu = None # initial declaration
     browser = None
     main_tab = None
+    crawler_name = get_crawler_name(remote_crawler)
 
     # The following part is to create the Nodes
     for x in m:
@@ -324,7 +331,7 @@ def initial_draw_graph(details, gp):
         elif x[2] == "renderer":
             print("the renderer list is")
             print(x)
-            main_tab = Node("Main_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
+            main_tab = Node("Main_Tab",Crawler=crawler_name ,name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
             main_tab_pid = x[1]
             gp.create(main_tab)
             survivors.append(x[1])
