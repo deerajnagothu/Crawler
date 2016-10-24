@@ -20,9 +20,8 @@ t = 75  # set a threshold value for origin points to click
 target = 'http://www.amazon.com' # taget website to crawl
 delete_graph_history = "no"
 database = "localhost"
-zoom_level = 4
 remote_crawler = "no"
-
+zoom_level = 4
 #####################################################
 def html_get_value(html_line):  # get value from a html line. Like "<span class="th" jscontent="pid" jstcache="12">3944</span>" will return 3944
     x = list(html_line)
@@ -285,8 +284,7 @@ def zoom_out(scale):
     for x in range(0,scale):
         print("zooming out")
         pyautogui.keyDown('-')
-        sleep(1)
-    pyautogui.keyUp('-')
+        pyautogui.keyUp('-')
     pyautogui.keyUp('ctrlleft')
     return True
 # This function is called when there is data collected about the initial status of the browser
@@ -431,7 +429,8 @@ browser.get(target) # This open the target website
 browser.maximize_window() # By default the window is not maximised. This maximises the window
 sleep(2)
 print("Starting to zoom out")
-zoom_out(zoom_level)
+for x in range(0, zoom_level):
+    zoom_out(1)
 sleep((2))
 main_window = browser.current_window_handle # Get the main handle for the target website tab
 print("This is my main window : "+str(main_window))
