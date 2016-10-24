@@ -19,7 +19,7 @@ pyautogui.FAILSAFE = False
 
 t = 75  # set a threshold value for origin points to click
 target = 'http://www.amazon.com' # taget website to crawl
-delete_graph_history = "no"
+delete_graph_history = "yes"
 database = "localhost"
 remote_crawler = "no"
 zoom_level = 4
@@ -304,6 +304,7 @@ def crawling_completed(main_tab, gp):
     if complete_graph is not None:
         rel = Relationship(main_tab, "Crawing Complete", complete_graph)
         gp.create(rel)
+    gp.commit()
     return True
 
 def initial_draw_graph(details, gp):
