@@ -3,6 +3,7 @@
 import pyautogui
 import random
 import sys
+import psutil
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -36,6 +37,24 @@ def html_get_value(html_line):  # get value from a html line. Like "<span class=
         return "Nothing"
     else:
         return x[0]
+def get_process_details(process_id):  # Thiis uses Psutils module to get details of the process which was created
+    pid_details = []                 # The PID is used to get details and then appended back to database
+    print("the process ID is "+process_id)
+    pid = psutil.Process(int(process_id))
+    #pid
+    pid_details.append(process_id)
+    # Name
+    pid_details.append(pid.name())
+    # EXE
+    pid_details.append(pid.exe())
+    # Command Line
+    pid_details.append(pid.cmdline())
+    # Create time
+    pid_details.append(pid.create_time())
+    # Memory Percent
+    pid_details.append(pid.memory_percent())
+    return pid_details
+
 
 def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
     if flag == 1:
@@ -119,7 +138,14 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
             details.append(x[7].get_text())
 
     sleep(3)
+    # Create another list which consists of the PID information from the system using PSutils
+    pid_details = []
+    splitting = [details[x:x+8] for x in range(0, len(details), 8)]
+    for x in splitting:
+        pid_details.append(get_process_details(str(x[1])))
+    print(pid_details)
   # browser.find_element_by_tag_name("body").send_keys(Keys.CONTROL + "w") # close the memory tab along with the newly opened tab.
+
     pyautogui.keyDown('ctrlleft') # CTRL+W is used to close the current focus tab which is extension popup
     pyautogui.keyDown('w')
     pyautogui.keyUp('w')
@@ -146,6 +172,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
         print("The current window handle is : "+str(browser.current_window_handle))
         sleep(1)
         url = browser.current_url # Saving the url of the newly opened tab
+       # html_of_new_page = browser.page_source
         print("#################################################################################################")
         print("THis is the URL of this page : "+str(url))
         sleep(1)
@@ -163,7 +190,7 @@ def get_tab_data(flag, already_open):  #  open the new tab for memory data and g
     # Now at this point there should be only one tab opened which is main default tab.
     print("Switched to the main handle")
     sleep(3)
-    return details, url, duplicate
+    return details, url, duplicate, pid_details
 # The following function has the same functionality as the above function. The below function is used to get the data
 # when the browser is started. This provides the initial information about the browser.
 # The separate function is made because the above function is triggered when a new tab opened was deteceted.
@@ -203,7 +230,6 @@ def get_initital_browser_data(flag,freshly_opened):
         sleep(3)
         html = browser.page_source
         soup = BeautifulSoup(html, "html.parser")
-
         pyautogui.press('esc')
         table = soup.find_all("tr")
         details = []
@@ -233,13 +259,18 @@ def get_initital_browser_data(flag,freshly_opened):
             print(x[7].get_text())
 
     sleep(3)
+    pid_details = []
+    splitting = [details[x:x+8] for x in range(0, len(details), 8)]
+    for each in splitting:
+        pid_details.append(get_process_details(str(each[1])))
+
     pyautogui.keyDown('ctrlleft')
     pyautogui.keyDown('w')
     pyautogui.keyUp('w')
     pyautogui.keyUp('ctrlleft')
     sleep(2)
     browser.switch_to_window(freshly_opened[0])
-    return details
+    return details, pid_details
 
 def open_new_tab(flag):
     if flag == 1:
@@ -307,7 +338,7 @@ def crawling_completed(main_tab, gp):
     gp.commit()
     return True
 
-def initial_draw_graph(details, gp):
+def initial_draw_graph(details, gp, pid_details):
     m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
 # Categorized such that each of them can be made as nodes and then later relationships can be established
     extensions = []
@@ -325,37 +356,47 @@ def initial_draw_graph(details, gp):
             print("the browser list is:")
             print(x)
             # This feeds the info into the Node
-            browser = Node("Browser", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-            gp.create(browser)  # creates the Node with the data
-            survivors.append(x[1]) # appends the current PID to the survivors list
+            for y in pid_details:
+                if y[0] == x[1]:
+                    browser = Node("Browser", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    gp.create(browser)  # creates the Node with the data
+                    survivors.append(x[1]) # appends the current PID to the survivors list
         elif x[2] == "gpu":
             print("the gpu list is")
             print(x)
-            gpu = Node("GPU", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-            gp.create(gpu)
-            survivors.append(x[1])
+            for y in pid_details:
+                if y[0] == x[1]:
+                    gpu = Node("GPU", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7],  process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    gp.create(gpu)
+                    survivors.append(x[1])
         elif x[2] == "extension":
             print("the extension list is")
             print(x)
-            node = Node("iExtension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-            gp.create(node)
-            extensions.append(node)
+            for y in pid_details:
+                if y[0] == x[1]:
+                    node = Node("iExtension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7],  process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    gp.create(node)
+                    extensions.append(node)
             if x[5] != "Extension: chrome-extension://eobmgbdhncfblmillcdjjnnbhcpjognj/popup.html":
                 survivors.append(x[1])
         elif x[2] == "renderer":
             print("the renderer list is")
             print(x)
-            main_tab = Node("Main_Tab",Crawler=crawler_name, time=timer, name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-            main_tab_pid = x[1]
-            gp.create(main_tab)
-            survivors.append(x[1])
+            for y in pid_details:
+                if y[0] == x[1]:
+                    main_tab = Node("Main_Tab",Crawler=crawler_name, time=timer, name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7],  process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    main_tab_pid = x[1]
+                    gp.create(main_tab)
+                    survivors.append(x[1])
         elif x[2] == "plugin":
             print("the plugin list is")
             print(x)
-            node = Node("iPlugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-            gp.create(node)
-            plugins.append(node)
-            survivors.append(x[1])
+            for y in pid_details:
+                if y[0] == x[1]:
+                    node = Node("iPlugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7],  process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    gp.create(node)
+                    plugins.append(node)
+                    survivors.append(x[1])
     # The following part is to create the relationship between the browser initial stage
     if gpu is not None:
         rel1 = Relationship(main_tab,"GPU",gpu)
@@ -369,6 +410,9 @@ def initial_draw_graph(details, gp):
     for each in plugins:
         rel4 = Relationship(main_tab, "Initial Plugin", each)
         gp.create(rel4)
+   # html_text = Node("HTML text", page_source=html_of_main_page)
+   # rel5= Relationship(main_tab, "HTML text", html_text)
+   # gp.create(rel5)
     gp.commit() # Commit writes the changes made to the database
     return main_tab, survivors, gp, main_tab_pid
 # The main tab pid is required because everytime there is a new tab opened the initial details of the main tab are
@@ -376,7 +420,7 @@ def initial_draw_graph(details, gp):
 # new node with the same PID created.
 
 # The following function has the same functionality as above, but this is used when there is a new tab opened
-def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pid):
+def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pid, pid_details):
     m = [details[x:x+8] for x in range(0, len(details), 8)]  # split the details list into sublist of 8
     new_survivors = []
     for each in m:
@@ -392,33 +436,45 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
         if x[2] == "renderer" and x[1] == main_tab_pid and duplicate == 1:
             # comparing so that there is no duplicate of the main tab
             # the duplicate parameter makes sure that the child tab with same pid as parent is created.
-            new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
-            print(new_node)
-            print("printing url again")
-            print(url)
-            gp.create(new_node)
-            connection = Relationship(main_tab, "New Link Opened", new_node)
-            gp.create(connection)
+            for y in pid_details:
+                if y[0] == x[1]:
+                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    print(new_node)
+                    print("printing url again")
+                    print(url)
+                    gp.create(new_node)
+                    connection = Relationship(main_tab, "New Link Opened", new_node)
+                    gp.create(connection)
         if x[2] == "renderer" and x[1] != main_tab_pid: # comparing so that there is no duplicate of the main tab
-            new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url)
-            print(new_node)
-            print("printing url again")
-            print(url)
-            gp.create(new_node)
-            connection = Relationship(main_tab, "New Link Opened", new_node)
-            gp.create(connection)
+            for y in pid_details:
+                if y[0] == x[1]:
+                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    print(new_node)
+                    print("printing url again")
+                    print(url)
+                    gp.create(new_node)
+                    connection = Relationship(main_tab, "New Link Opened", new_node)
+                    gp.create(connection)
     for x in m:
         if x[1] in unique_survivors and new_node is not None:
             if x[2] == "plugin":
-                plugin_node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-                gp.create(plugin_node)
-                plugin_rel = Relationship(new_node, "Plugin", plugin_node)
-                gp.create(plugin_rel)
+                for y in pid_details:
+                    if y[0] == x[1]:
+                        plugin_node = Node("Plugin", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                        gp.create(plugin_node)
+                        plugin_rel = Relationship(new_node, "Plugin", plugin_node)
+                        gp.create(plugin_rel)
             elif x[2] == "extension":
-                ext_node = Node("Extension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7])
-                gp.create(ext_node)
-                ext_rel = Relationship(new_node, "Extension", ext_node)
-                gp.create(ext_rel)
+                for y in pid_details:
+                    if y[0] == x[1]:
+                        ext_node = Node("Extension", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                        gp.create(ext_node)
+                        ext_rel = Relationship(new_node, "Extension", ext_node)
+                        gp.create(ext_rel)
+
+   # html_text = Node("HTML text", page_source=html_of_new_page)
+   # html_rel = Relationship(new_node,"HTML text",html_text)
+   # gp.create(html_rel)
     gp.commit()
 
 graph_database_location = "http://"+database+":7474/db/data/"
@@ -453,16 +509,17 @@ print("Starting to zoom out")
 for x in range(0, zoom_level):
     zoom_out(1)
 sleep((2))
+html_of_main_page = browser.page_source
 main_window = browser.current_window_handle # Get the main handle for the target website tab
 print("This is my main window : "+str(main_window))
 freshly_opened = browser.window_handles # Get all the handles
 print(freshly_opened)
 print(browser.current_window_handle)
 # Start Crawling
-initial_details = get_initital_browser_data(1,freshly_opened)
+initial_details, initial_pid_details = get_initital_browser_data(1,freshly_opened)
 print("printing the initial draw graph details !")
 
-main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp) # Makes the initial Node for main tab
+main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp, initial_pid_details ) # Makes the initial Node for main tab
 gp = graph.begin()
 maintab_url = browser.current_url # comparing if the crawler target is still the same else was there any change
 
@@ -482,8 +539,8 @@ for coordinate in coordinates:
         continue
     else:
         already_open = browser.window_handles
-        details, url, duplicate = get_tab_data(1, already_open)
-        draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid) # adds the nodes to the main node created
+        details, url, duplicate, pid_details = get_tab_data(1, already_open)
+        draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid, pid_details ) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
 done = crawling_completed(main_tab,gp)
