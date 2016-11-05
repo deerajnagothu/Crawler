@@ -54,6 +54,40 @@ def get_process_details(process_id):  # Thiis uses Psutils module to get details
     # Memory Percent
     pid_details.append(pid.memory_percent())
     return pid_details
+# The following function is used to get new process details whenever a new click is made
+# Before the click is generated the processes in the system are captured and then those are passed as parameters
+# to the following function. The following function should trace the newly generated process and then create a node
+# with the node which was created for the newly opened webpage.
+
+def capture_system_new_process(process_before_click, new_page_node, gp):
+    list_of_current_processes = psutil.pids()
+
+    new_processes_after_click = [x for x in list_of_current_processes if x not in process_before_click]
+    print("The new processes found are",new_processes_after_click)
+    details_of_new_process = []
+    new_process_detected = 0
+    for new_process in new_processes_after_click:
+        proc = psutil.Process(new_process)
+        details_of_new_process.append(new_process)
+        details_of_new_process.append(proc.name())
+        details_of_new_process.append(proc.exe())
+        details_of_new_process.append(proc.cmdline())
+        details_of_new_process.append(proc.create_time())
+        details_of_new_process.append(proc.memory_percent())
+
+    if len(details_of_new_process) != 0:
+        print("Why am i even here")
+        splitting_of_details_list = [details_of_new_process[x:x+6] for x in range(0, len(details_of_new_process))]
+        new_process_detected = 1
+        for x in splitting_of_details_list:
+            new_process_node = Node("System Process", name=x[1], PID=x[0], Executable=x[2], Command_line=x[3], Create_time=x[4], Memory_percent=x[5])
+            gp.create(new_process_node)
+            process_connection = Relationship(new_page_node, "System Process Triggered", new_process_node)
+            gp.create(process_connection)
+
+        gp.commit()
+    return new_process_detected, gp
+
 
 
 def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
@@ -445,6 +479,11 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
                     gp.create(new_node)
                     connection = Relationship(main_tab, "New Link Opened", new_node)
                     gp.create(connection)
+                    system_processes = psutil.pids()
+                    k = capture_system_new_process(system_processes,new_node,gp)
+                    if k == 1:
+                        print("THERE WAS A NEW SYSTEM PROCESS DETECTED.....CHECK IT OUT !!")
+
         if x[2] == "renderer" and x[1] != main_tab_pid: # comparing so that there is no duplicate of the main tab
             for y in pid_details:
                 if y[0] == x[1]:
@@ -455,6 +494,11 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
                     gp.create(new_node)
                     connection = Relationship(main_tab, "New Link Opened", new_node)
                     gp.create(connection)
+                    system_processes = psutil.pids()
+                    k, gp = capture_system_new_process(system_processes,new_node, gp)
+                    if k == 1:
+                        print("THERE WAS A NEW SYSTEM PROCESS DETECTED.....CHECK IT OUT !!")
+
     for x in m:
         if x[1] in unique_survivors and new_node is not None:
             if x[2] == "plugin":
