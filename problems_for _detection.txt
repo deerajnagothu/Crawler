@@ -3,3 +3,8 @@
 
 2. "Captcha" is another thing which can detect crawler. The crawler will click continuously even if there is a captcha
    alert. 
+3. Detection analysis by the attacker to check if his program is running inside a virtual machine.( Lallous, ” Detect if your program is running inside a 
+Virtual Machine,” March 2005, 
+http://www.codeproject.com/system/VmDetect.asp.)
+
+4. Websites which make you wait, like them having some sort of countdown
