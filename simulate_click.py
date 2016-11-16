@@ -363,8 +363,8 @@ def zoom_out(scale):
 def crawling_completed(main_tab, gp):
     complete_graph = None
     crawler = get_crawler_name(remote_crawler)
-    text = "Crawling completed by"+crawler
-    complete_graph = Node("Completed", details = text)
+    text = "Crawling completed by "+crawler
+    complete_graph = Node("Completed", details = text, name=crawler)
     gp.create(complete_graph)
     if complete_graph is not None:
         rel = Relationship(main_tab, "Crawing Complete", complete_graph)
@@ -372,7 +372,7 @@ def crawling_completed(main_tab, gp):
     gp.commit()
     return True
 
-def initial_draw_graph(details, gp, pid_details):
+def initial_draw_graph(details, gp, pid_details, main_url):
     m = [details[x:x+8] for x in range(0, len(details), 8)] # split the details list into sublist of 8
 # Categorized such that each of them can be made as nodes and then later relationships can be established
     extensions = []
@@ -418,7 +418,7 @@ def initial_draw_graph(details, gp, pid_details):
             print(x)
             for y in pid_details:
                 if y[0] == x[1]:
-                    main_tab = Node("Main_Tab",Crawler=crawler_name, time=timer, name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7],  process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    main_tab = Node("Main_Tab",Crawler=crawler_name, time=timer, name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7],  process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5],Main_URL=main_url)
                     main_tab_pid = x[1]
                     gp.create(main_tab)
                     survivors.append(x[1])
@@ -457,6 +457,7 @@ def initial_draw_graph(details, gp, pid_details):
 def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pid, pid_details):
     m = [details[x:x+8] for x in range(0, len(details), 8)]  # split the details list into sublist of 8
     new_survivors = []
+    crawler_name = get_crawler_name(remote_crawler)
     for each in m:
         new_survivors.append(each[1])
     print("New survivors are")
@@ -472,7 +473,7 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
             # the duplicate parameter makes sure that the child tab with same pid as parent is created.
             for y in pid_details:
                 if y[0] == x[1]:
-                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5], Crawler=crawler_name)
                     print(new_node)
                     print("printing url again")
                     print(url)
@@ -487,7 +488,7 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
         if x[2] == "renderer" and x[1] != main_tab_pid: # comparing so that there is no duplicate of the main tab
             for y in pid_details:
                 if y[0] == x[1]:
-                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5])
+                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5],Crawler=crawler_name)
                     print(new_node)
                     print("printing url again")
                     print(url)
@@ -562,10 +563,10 @@ print(browser.current_window_handle)
 # Start Crawling
 initial_details, initial_pid_details = get_initital_browser_data(1,freshly_opened)
 print("printing the initial draw graph details !")
-
-main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp, initial_pid_details ) # Makes the initial Node for main tab
+maintab_url = browser.current_url  # comparing if the crawler target is still the same else was there any change
+main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp, initial_pid_details, maintab_url ) # Makes the initial Node for main tab
 gp = graph.begin()
-maintab_url = browser.current_url # comparing if the crawler target is still the same else was there any change
+
 
 # Each coordinate is sent in loop and crawled
 for coordinate in coordinates:

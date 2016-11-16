@@ -19,10 +19,10 @@
 from itertools import chain
 from uuid import uuid4
 
+from py2neo.caching import ThreadLocalEntityCache
 from py2neo.compat import integer, string, unicode, ustr, ReprIO
 from py2neo.database.http import Resource
-from py2neo.util import is_collection, round_robin, \
-    ThreadLocalWeakValueDictionary, deprecated, relationship_case, snake_case
+from py2neo.util import is_collection, round_robin, deprecated, relationship_case, snake_case
 
 
 # Maximum and minimum integers supported up to Java 7.
@@ -218,6 +218,8 @@ class Subgraph(object):
         self.__nodes = frozenset(nodes or [])
         self.__relationships = frozenset(relationships or [])
         self.__nodes |= frozenset(chain(*(r.nodes() for r in self.__relationships)))
+        if not self.__nodes:
+            raise ValueError("Subgraphs must contain at least one node")
 
     def __repr__(self):
         from py2neo.database.cypher import CypherWriter
@@ -337,30 +339,24 @@ class Subgraph(object):
         return tx.evaluate(statement, parameters)
 
     def __db_delete__(self, tx):
-        matches = []
-        deletes = []
-        parameters = {}
-        for i, relationship in enumerate(self.relationships()):
-            remote_relationship = remote(relationship)
-            if remote_relationship:
-                rel_id = "r%d" % i
-                param_id = "y%d" % i
-                matches.append("MATCH ()-[%s]->() "
-                               "WHERE id(%s)={%s}" % (rel_id, rel_id, param_id))
-                deletes.append("DELETE %s" % rel_id)
-                parameters[param_id] = remote_relationship._id
-                del relationship.__remote__
+        node_ids = set()
+        relationship_ids = set()
         for i, node in enumerate(self.nodes()):
             remote_node = remote(node)
             if remote_node:
-                node_id = "a%d" % i
-                param_id = "x%d" % i
-                matches.append("MATCH (%s) "
-                               "WHERE id(%s)={%s}" % (node_id, node_id, param_id))
-                deletes.append("DELETE %s" % node_id)
-                parameters[param_id] = remote_node._id
-                del node.__remote__
-        statement = "\n".join(matches + deletes)
+                node_ids.add(remote_node._id)
+            else:
+                return False
+        for i, relationship in enumerate(self.relationships()):
+            remote_relationship = remote(relationship)
+            if remote_relationship:
+                relationship_ids.add(remote_relationship._id)
+            else:
+                return False
+        statement = ("OPTIONAL MATCH (a) WHERE id(a) IN {x} "
+                     "OPTIONAL MATCH ()-[r]->() WHERE id(r) IN {y} "
+                     "DELETE r, a")
+        parameters = {"x": list(node_ids), "y": list(relationship_ids)}
         tx.run(statement, parameters)
 
     def __db_exists__(self, tx):
@@ -752,7 +748,7 @@ class Entity(PropertyDict, Walkable):
         if cache:
             uri = remote(self).uri
             if uri in cache:
-                del cache[remote(self).uri]
+                cache.update(remote(self).uri, None)
         self.__remote = None
         self.__remote_pending_tx = None
 
@@ -819,20 +815,26 @@ class Node(Relatable, Entity):
 
     """
 
-    cache = ThreadLocalWeakValueDictionary()
+    cache = ThreadLocalEntityCache()
 
     @classmethod
     def hydrate(cls, data, inst=None):
         self = data["self"]
         if inst is None:
-            new_inst = cls()
-            new_inst.__stale.update({"labels", "properties"})
-            inst = cls.cache.setdefault(self, new_inst)
-            # The check below is a workaround for http://bugs.python.org/issue19542
-            # See also: https://github.com/nigelsmall/py2neo/issues/391
-            if inst is None:
-                inst = cls.cache[self] = new_inst
-        cls.cache[self] = inst
+
+            def inst_constructor():
+                new_inst = cls()
+                new_inst.__stale.update({"labels", "properties"})
+                return new_inst
+
+            inst = cls.cache.update(self, inst_constructor)
+            # inst = cls.cache.setdefault(self, new_inst)
+            # # The check below is a workaround for http://bugs.python.org/issue19542
+            # # See also: https://github.com/nigelsmall/py2neo/issues/391
+            # if inst is None:
+            #     inst = cls.cache[self] = new_inst
+        else:
+            cls.cache.update(self, inst)
         inst.__remote__ = RemoteEntity(self, data)
         if "data" in data:
             inst.__stale.discard("properties")
@@ -973,7 +975,7 @@ class Relationship(Entity):
 
     """
 
-    cache = ThreadLocalWeakValueDictionary()
+    cache = ThreadLocalEntityCache()
 
     @classmethod
     def default_type(cls):
@@ -987,16 +989,14 @@ class Relationship(Entity):
         self = data["self"]
         start = data["start"]
         end = data["end"]
+
         if inst is None:
-            new_inst = cls(Node.hydrate({"self": start}),
-                           data.get("type"),
-                           Node.hydrate({"self": end}),
-                           **data.get("data", {}))
-            inst = cls.cache.setdefault(self, new_inst)
-            # The check below is a workaround for http://bugs.python.org/issue19542
-            # See also: https://github.com/nigelsmall/py2neo/issues/391
-            if inst is None:
-                inst = cls.cache[self] = new_inst
+
+            def inst_constructor():
+                return cls(Node.hydrate({"self": start}), data.get("type"),
+                           Node.hydrate({"self": end}), **data.get("data", {}))
+
+            inst = cls.cache.update(self, inst_constructor)
         else:
             Node.hydrate({"self": start}, inst.start_node())
             Node.hydrate({"self": end}, inst.end_node())
@@ -1006,7 +1006,7 @@ class Relationship(Entity):
                 inst.update(data["data"])
             else:
                 inst.__stale.add("properties")
-        cls.cache[self] = inst
+            cls.cache.update(self, inst)
         inst.__remote__ = RemoteEntity(self, data)
         return inst
 

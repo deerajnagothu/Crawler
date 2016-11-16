@@ -21,12 +21,13 @@ from collections import deque, OrderedDict
 from email.utils import parsedate_tz, mktime_tz
 from warnings import warn
 
-from py2neo.compat import integer, string
+from py2neo import PRODUCT
+from py2neo.compat import Mapping, string
 from py2neo.database.cypher import cypher_escape, cypher_repr
 from py2neo.packages.httpstream import Response as HTTPResponse
 from py2neo.packages.httpstream.numbers import NOT_FOUND
 from py2neo.packages.neo4j.v1 import GraphDatabase
-from py2neo.packages.neo4j.v1.connection import Response, RUN, PULL_ALL
+from py2neo.packages.neo4j.v1.bolt import Response, RUN, PULL_ALL
 from py2neo.packages.neo4j.v1.types import \
     Node as BoltNode, Relationship as BoltRelationship, Path as BoltPath, hydrated as bolt_hydrate
 from py2neo.types import cast_node, Subgraph, remote
@@ -35,7 +36,23 @@ from py2neo.util import deprecated, version_tuple
 from py2neo.database.auth import *
 from py2neo.database.cypher import *
 from py2neo.database.http import *
+from py2neo.database.selection import *
 from py2neo.database.status import *
+
+
+update_stats_keys = [
+    "constraints_added",
+    "constraints_removed",
+    "indexes_added",
+    "indexes_removed",
+    "labels_added",
+    "labels_removed",
+    "nodes_created",
+    "nodes_deleted",
+    "properties_set",
+    "relationships_deleted",
+    "relationships_created",
+]
 
 
 def normalise_request(statement, parameters, **kwparameters):
@@ -62,6 +79,7 @@ def cypher_request(statement, parameters, **kwparameters):
         ("statement", s),
         ("parameters", p),
         ("resultDataContents", ["REST"]),
+        ("includeStats", True),
     ])
 
 
@@ -311,9 +329,10 @@ class Graph(object):
                 auth = get_auth(address)
                 inst.driver = GraphDatabase.driver(address.bolt_uri("/"),
                                                    auth=None if auth is None else auth.bolt_auth_token,
-                                                   encypted=address.secure,
+                                                   encrypted=address.secure,
                                                    user_agent="/".join(PRODUCT))
                 inst.transaction_class = BoltTransaction
+            inst.node_selector = NodeSelector(inst)
             cls.__instances[key] = inst
         return inst
 
@@ -359,6 +378,43 @@ class Graph(object):
         """
         self.begin(autocommit=True).create(subgraph)
 
+    def data(self, statement, parameters=None, **kwparameters):
+        """ Run a :meth:`.Transaction.run` operation within an
+        `autocommit` :class:`.Transaction` and extract the data
+        as a list of dictionaries.
+
+        For example::
+
+            >>> from py2neo import Graph
+            >>> graph = Graph(password="excalibur")
+            >>> graph.data("MATCH (a:Person) RETURN a.name, a.born LIMIT 4")
+            [{'a.born': 1964, 'a.name': 'Keanu Reeves'},
+             {'a.born': 1967, 'a.name': 'Carrie-Anne Moss'},
+             {'a.born': 1961, 'a.name': 'Laurence Fishburne'},
+             {'a.born': 1960, 'a.name': 'Hugo Weaving'}]
+
+        The extracted data can then be easily passed into an external data handler such as a
+        `pandas.DataFrame <http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe>`_
+        for subsequent processing::
+
+            >>> from pandas import DataFrame
+            >>> DataFrame(graph.data("MATCH (a:Person) RETURN a.name, a.born LIMIT 4"))
+               a.born              a.name
+            0    1964        Keanu Reeves
+            1    1967    Carrie-Anne Moss
+            2    1961  Laurence Fishburne
+            3    1960        Hugo Weaving
+
+        .. seealso:: :meth:`.Cursor.data`
+
+        :param statement: Cypher statement
+        :param parameters: dictionary of parameters
+        :param kwparameters: additional keyword parameters
+        :return: the full query result
+        :rtype: `list` of `dict`
+        """
+        return self.begin(autocommit=True).run(statement, parameters, **kwparameters).data()
+
     @property
     def dbms(self):
         """ The database management system to which this :class:`.Graph`
@@ -378,7 +434,8 @@ class Graph(object):
 
     def delete(self, subgraph):
         """ Run a :meth:`.Transaction.delete` operation within an
-        `autocommit` :class:`.Transaction`.
+        `autocommit` :class:`.Transaction`. To delete only the
+        relationships, use the :meth:`.separate` method.
 
         :param subgraph: a :class:`.Node`, :class:`.Relationship` or other
                        :class:`.Subgraph` object
@@ -420,6 +477,7 @@ class Graph(object):
         """
         return self.begin(autocommit=True).exists(subgraph)
 
+    @deprecated("Graph.find is deprecated, use NodeSelector instead")
     def find(self, label, property_key=None, property_value=None, limit=None):
         """ Yield all nodes with a given label, optionally filtering
         by property key and value.
@@ -430,28 +488,15 @@ class Graph(object):
                                provided, any of these values may be matched
         :param limit: maximum number of nodes to match
         """
-        if not label:
-            raise ValueError("Empty label")
-        clauses = ["MATCH (a:%s)" % cypher_escape(label)]
-        parameters = {}
-        if property_key is not None:
-            if isinstance(property_value, (tuple, set, frozenset)):
-                clauses.append("WHERE a.%s IN {x}" % cypher_escape(property_key))
-                parameters["x"] = list(property_value)
-            else:
-                clauses.append("WHERE a.%s = {x}" % cypher_escape(property_key))
-                parameters["x"] = property_value
-        clauses.append("RETURN a, labels(a)")
+        node_selection = self.node_selector.select(label)
+        if property_key:
+            node_selection = node_selection.where(**{property_key: property_value})
         if limit:
-            clauses.append("LIMIT %d" % limit)
-        cursor = self.run("\n".join(clauses), parameters)
-        while cursor.forward():
-            record = cursor.current()
-            a = record[0]
-            a.update_labels(record[1])
-            yield a
-        cursor.close()
+            node_selection = node_selection.limit(limit)
+        for node in node_selection:
+            yield node
 
+    @deprecated("Graph.find_one is deprecated, use NodeSelector instead")
     def find_one(self, label, property_key=None, property_value=None):
         """ Find a single node by label and optional property. This method is
         intended to be used with a unique constraint and does not fail if more
@@ -462,8 +507,10 @@ class Graph(object):
         :param property_value: property value to match; if a tuple or set is
                                provided, any of these values may be matched
         """
-        for node in self.find(label, property_key, property_value, limit=1):
-            return node
+        node_selection = self.node_selector.select(label).limit(1)
+        if property_key:
+            node_selection = node_selection.where(**{property_key: property_value})
+        return node_selection.first()
 
     def _hydrate(self, data, inst=None):
         if isinstance(data, dict):
@@ -518,44 +565,52 @@ class Graph(object):
         :param bidirectional: :const:`True` if reversed relationships should also be included
         :param limit: maximum number of relationships to match (:const:`None` means unlimited)
         """
+        clauses = []
+        returns = []
         if start_node is None and end_node is None:
-            statement = "MATCH (a)"
+            clauses.append("MATCH (a)")
             parameters = {}
+            returns.append("a")
+            returns.append("b")
         elif end_node is None:
-            statement = "MATCH (a) WHERE id(a)={A}"
+            clauses.append("MATCH (a) WHERE id(a) = {1}")
             start_node = cast_node(start_node)
             if not remote(start_node):
                 raise TypeError("Nodes for relationship match end points must be bound")
-            parameters = {"A": remote(start_node)._id}
+            parameters = {"1": remote(start_node)._id}
+            returns.append("b")
         elif start_node is None:
-            statement = "MATCH (b) WHERE id(b)={B}"
+            clauses.append("MATCH (b) WHERE id(b) = {2}")
             end_node = cast_node(end_node)
             if not remote(end_node):
                 raise TypeError("Nodes for relationship match end points must be bound")
-            parameters = {"B": remote(end_node)._id}
+            parameters = {"2": remote(end_node)._id}
+            returns.append("a")
         else:
-            statement = "MATCH (a) WHERE id(a)={A} MATCH (b) WHERE id(b)={B}"
+            clauses.append("MATCH (a) WHERE id(a) = {1} MATCH (b) WHERE id(b) = {2}")
             start_node = cast_node(start_node)
             end_node = cast_node(end_node)
             if not remote(start_node) or not remote(end_node):
                 raise TypeError("Nodes for relationship match end points must be bound")
-            parameters = {"A": remote(start_node)._id, "B": remote(end_node)._id}
+            parameters = {"1": remote(start_node)._id, "2": remote(end_node)._id}
         if rel_type is None:
-            rel_clause = ""
+            relationship_detail = ""
         elif is_collection(rel_type):
-            rel_clause = ":" + "|:".join("`{0}`".format(_) for _ in rel_type)
+            relationship_detail = ":" + "|:".join(cypher_escape(t) for t in rel_type)
         else:
-            rel_clause = ":`{0}`".format(rel_type)
+            relationship_detail = ":%s" % cypher_escape(rel_type)
         if bidirectional:
-            statement += " MATCH (a)-[r" + rel_clause + "]-(b) RETURN r"
+            clauses.append("MATCH (a)-[_" + relationship_detail + "]-(b)")
         else:
-            statement += " MATCH (a)-[r" + rel_clause + "]->(b) RETURN r"
+            clauses.append("MATCH (a)-[_" + relationship_detail + "]->(b)")
+        returns.append("_")
+        clauses.append("RETURN %s" % ", ".join(returns))
         if limit is not None:
-            statement += " LIMIT {0}".format(int(limit))
-        cursor = self.run(statement, parameters)
+            clauses.append("LIMIT %d" % limit)
+        cursor = self.run(" ".join(clauses), parameters)
         while cursor.forward():
             record = cursor.current()
-            yield record["r"]
+            yield record["_"]
 
     def match_one(self, start_node=None, rel_type=None, end_node=None, bidirectional=False):
         """ Match and return one relationship with specific criteria.
@@ -601,7 +656,7 @@ class Graph(object):
         try:
             return Node.cache[uri_string]
         except KeyError:
-            node = self.evaluate("MATCH (a) WHERE id(a)={x} RETURN a", x=id_)
+            node = self.node_selector.select().where("id(_) = %d" % id_).first()
             if node is None:
                 raise IndexError("Node %d not found" % id_)
             else:
@@ -770,6 +825,10 @@ class DataSource(object):
         """ Return the keys for the whole data set.
         """
 
+    def stats(self):
+        """ Return the query statistics.
+        """
+
     def fetch(self):
         """ Fetch and return the next item.
         """
@@ -781,6 +840,7 @@ class HTTPDataSource(DataSource):
         self.graph = graph
         self.transaction = transaction
         self._keys = None
+        self._stats = None
         self.buffer = deque()
         self.loaded = False
         if data:
@@ -790,6 +850,11 @@ class HTTPDataSource(DataSource):
         if not self.loaded:
             self.transaction.process()
         return self._keys
+
+    def stats(self):
+        if not self.loaded:
+            self.transaction.process()
+        return self._stats
 
     def fetch(self):
         try:
@@ -808,6 +873,11 @@ class HTTPDataSource(DataSource):
         except (AttributeError, IndexError):
             entities = {}
         self._keys = keys = tuple(data["columns"])
+        self._stats = data["stats"]
+        # fix broken key
+        if "relationship_deleted" in self._stats:
+            self._stats["relationships_deleted"] = self._stats["relationship_deleted"]
+            del self._stats["relationship_deleted"]
         hydrate = self.graph._hydrate
         for record in data["data"]:
             values = []
@@ -826,6 +896,7 @@ class BoltDataSource(DataSource):
         self.entities = entities
         self.graph_uri = graph_uri
         self._keys = None
+        self._stats = None
         self.buffer = deque()
         self.loaded = False
 
@@ -834,6 +905,12 @@ class BoltDataSource(DataSource):
         while self._keys is None and not self.loaded:
             self.connection.fetch()
         return self._keys
+
+    def stats(self):
+        self.connection.send()
+        while self._stats is None and not self.loaded:
+            self.connection.fetch()
+        return self._stats
 
     def fetch(self):
         try:
@@ -874,8 +951,7 @@ class BoltDataSource(DataSource):
         :param metadata:
         """
         self.loaded = True
-        # TODO: summary data
-        #cursor.summary = ResultSummary(self.statement, self.parameters, **metadata)
+        self._stats = {k.replace("-", "_"): v for k, v in metadata.get("stats", {}).items()}
 
     def on_failure(self, metadata):
         """ Called on execution failure.
@@ -953,11 +1029,12 @@ class Transaction(object):
         return self._finished
 
     def run(self, statement, parameters=None, **kwparameters):
-        """ Add a statement to the current queue of statements to be
-        executed.
+        """ Send a Cypher statement to the server for execution and return
+        a :py:class:`.Cursor` for navigating its result.
 
         :param statement: Cypher statement
         :param parameters: dictionary of parameters
+        :returns: :py:class:`.Cursor` object
         """
 
     @deprecated("Transaction.append(...) is deprecated, use Transaction.run(...) instead")
@@ -968,8 +1045,7 @@ class Transaction(object):
         pass
 
     def process(self):
-        """ Send all pending statements to the server for execution, leaving
-        the transaction open for further statements.
+        """ Send all pending statements to the server for processing.
         """
         self._post()
 
@@ -978,13 +1054,12 @@ class Transaction(object):
         self._finished = True
 
     def commit(self):
-        """ Send all pending statements to the server for execution and commit
-        the transaction.
+        """ Commit the transaction.
         """
         self._post(commit=True)
 
     def rollback(self):
-        """ Rollback the current transaction, undoing all actions taken so far.
+        """ Roll back the current transaction, undoing all actions previously taken.
         """
 
     def evaluate(self, statement, parameters=None, **kwparameters):
@@ -1040,7 +1115,8 @@ class Transaction(object):
 
     def delete(self, subgraph):
         """ Delete the remote nodes and relationships that correspond to
-        those in a local subgraph.
+        those in a local subgraph. To delete only the relationships, use
+        the :meth:`.separate` method.
 
         :param subgraph: a :class:`.Node`, :class:`.Relationship` or other
                        :class:`.Subgraph`
@@ -1139,6 +1215,8 @@ class HTTPTransaction(Transaction):
             self.finish()
         else:
             resource = self._execute or self._begin
+        if resource == self._begin_commit and not self.statements:
+            return
         rs = resource.post({"statements": self.statements})
         location = rs.location
         if location:
@@ -1248,17 +1326,17 @@ class Cursor(object):
     records, a `while` loop can be used::
 
         while cursor.forward():
-            print(cursor.current["name"])
+            print(cursor.current()["name"])
 
     If only the first record is of interest, a similar `if` structure will
     do the job::
 
         if cursor.forward():
-            print(cursor.current["name"])
+            print(cursor.current()["name"])
 
     To combine `forward` and `current` into a single step, use :attr:`.next`::
 
-        print(cursor.next["name"])
+        print(cursor.next()["name"])
 
     Cursors are also iterable, so can be used in a loop::
 
@@ -1314,6 +1392,14 @@ class Cursor(object):
         """
         return self._source.keys()
 
+    def stats(self):
+        """ Return the query statistics.
+        """
+        s = dict.fromkeys(update_stats_keys, 0)
+        s.update(self._source.stats())
+        s["contains_updates"] = bool(sum(s.get(k, 0) for k in update_stats_keys))
+        return s
+
     def forward(self, amount=1):
         """ Attempt to move the cursor one position forward (or by
         another amount if explicitly specified). The cursor will move
@@ -1367,11 +1453,49 @@ class Cursor(object):
         """
         if self.forward():
             try:
-                return self._current[field]
+                return self.current()[field]
             except IndexError:
                 return None
         else:
             return None
+
+    def data(self):
+        """ Consume and extract the entire result as a list of
+        dictionaries. This method generates a self-contained set of
+        result data using only Python-native data types.
+
+        ::
+
+            >>> from py2neo import Graph
+            >>> graph = Graph(password="excalibur")
+            >>> graph.run("MATCH (a:Person) RETURN a.name, a.born LIMIT 4").data()
+            [{'a.born': 1964, 'a.name': 'Keanu Reeves'},
+             {'a.born': 1967, 'a.name': 'Carrie-Anne Moss'},
+             {'a.born': 1961, 'a.name': 'Laurence Fishburne'},
+             {'a.born': 1960, 'a.name': 'Hugo Weaving'}]
+
+        The extracted data can then be easily passed into an external data handler such as a
+        `pandas.DataFrame <http://pandas.pydata.org/pandas-docs/stable/dsintro.html#dataframe>`_
+        for subsequent processing::
+
+            >>> from pandas import DataFrame
+            >>> DataFrame(graph.run("MATCH (a:Person) RETURN a.name, a.born LIMIT 4").data())
+               a.born              a.name
+            0    1964        Keanu Reeves
+            1    1967    Carrie-Anne Moss
+            2    1961  Laurence Fishburne
+            3    1960        Hugo Weaving
+
+        Similarly, to output the result data as a JSON-formatted string::
+
+            >>> import json
+            >>> json.dumps(graph.run("UNWIND range(1, 3) AS n RETURN n").data())
+            '[{"n": 1}, {"n": 2}, {"n": 3}]'
+
+        :return: the full query result
+        :rtype: `list` of `dict`
+        """
+        return [record.data() for record in self]
 
     def dump(self, out=stdout):
         """ Consume all records from this cursor and write in tabular
@@ -1395,7 +1519,11 @@ class Cursor(object):
             out.write(u"\n")
 
 
-class Record(tuple, Subgraph):
+class Record(tuple, Mapping):
+    """ A :class:`.Record` holds a collection of result values that are
+    both indexed by position and keyed by name. A `Record` instance can
+    therefore be seen as a combination of a `tuple` and a `Mapping`.
+    """
 
     def __new__(cls, keys, values):
         if len(keys) == len(values):
@@ -1405,14 +1533,6 @@ class Record(tuple, Subgraph):
 
     def __init__(self, keys, values):
         self.__keys = tuple(keys)
-        nodes = []
-        relationships = []
-        for value in values:
-            if hasattr(value, "nodes"):
-                nodes.extend(value.nodes())
-            if hasattr(value, "relationships"):
-                relationships.extend(value.relationships())
-        Subgraph.__init__(self, nodes, relationships)
         self.__repr = None
 
     def __repr__(self):
@@ -1449,3 +1569,22 @@ class Record(tuple, Subgraph):
 
     def values(self):
         return tuple(self)
+
+    def items(self):
+        return list(zip(self.__keys, self))
+
+    def data(self):
+        return dict(self)
+
+    def subgraph(self):
+        nodes = []
+        relationships = []
+        for value in self:
+            if hasattr(value, "nodes"):
+                nodes.extend(value.nodes())
+            if hasattr(value, "relationships"):
+                relationships.extend(value.relationships())
+        if nodes:
+            return Subgraph(nodes, relationships)
+        else:
+            return None
