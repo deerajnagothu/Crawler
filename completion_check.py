@@ -5,7 +5,7 @@ graph = Graph(graph_database_location, user='neo4j', password='cns2202') # conne
 
 tx=graph.begin()
 
-statement = 'Match (a:Main_Tab)-[c:Crawling_Complete]->(b:Completed) WHERE ((a.Crawler="Crawler-1")) RETURN c'
+statement = 'Match (a:Main_Tab)-[c:Crawling_Complete]->(b:Completed) WHERE ((a.Crawler="CRAWLER-1")) RETURN c'
 count=[]
 flag_detected = 0
 if (sys.argv[1] == "CRAWLER-1"):
@@ -13,6 +13,7 @@ if (sys.argv[1] == "CRAWLER-1"):
 else:
     while True:
         cursor=tx.run(statement).data()
+        print(cursor)
         if(len(cursor) != 0):
             for each in cursor:
                 x=list(each.values())
