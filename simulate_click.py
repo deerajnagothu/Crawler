@@ -4,6 +4,7 @@ import pyautogui
 import random
 import sys
 import psutil
+import random
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -20,7 +21,7 @@ pyautogui.FAILSAFE = False
 
 t = 75  # set a threshold value for origin points to click
 target = 'http://www.amazon.com' # taget website to crawl
-delete_graph_history = "yes"
+delete_graph_history = "no"
 database = "localhost"
 remote_crawler = "no"
 zoom_level = 4
@@ -364,10 +365,10 @@ def crawling_completed(main_tab, gp):
     complete_graph = None
     crawler = get_crawler_name(remote_crawler)
     text = "Crawling completed by "+crawler
-    complete_graph = Node("Completed", details = text, name=crawler)
+    complete_graph = Node("Completed", details=text, name=crawler)
     gp.create(complete_graph)
     if complete_graph is not None:
-        rel = Relationship(main_tab, "Crawing Complete", complete_graph)
+        rel = Relationship(main_tab, "Crawling_Complete", complete_graph)
         gp.create(rel)
     gp.commit()
     return True
@@ -454,7 +455,7 @@ def initial_draw_graph(details, gp, pid_details, main_url):
 # new node with the same PID created.
 
 # The following function has the same functionality as above, but this is used when there is a new tab opened
-def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pid, pid_details):
+def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pid, pid_details,future_crawler):
     m = [details[x:x+8] for x in range(0, len(details), 8)]  # split the details list into sublist of 8
     new_survivors = []
     crawler_name = get_crawler_name(remote_crawler)
@@ -473,7 +474,7 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
             # the duplicate parameter makes sure that the child tab with same pid as parent is created.
             for y in pid_details:
                 if y[0] == x[1]:
-                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5], Crawler=crawler_name)
+                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5], Crawled_by=crawler_name, Will_be_crawled_by=future_crawler, target_crawled="no")
                     print(new_node)
                     print("printing url again")
                     print(url)
@@ -488,7 +489,7 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
         if x[2] == "renderer" and x[1] != main_tab_pid: # comparing so that there is no duplicate of the main tab
             for y in pid_details:
                 if y[0] == x[1]:
-                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5],Crawler=crawler_name)
+                    new_node = Node("New_Tab", name=x[5], PID=x[1], CPU=x[3], Network=x[4], Private_memory=x[6], JSmemory=x[7], URL =url, process_name=y[1], Executable=y[2], Command_line=y[3], Create_time=y[4], Memory_percentage=y[5],Crawled_by=crawler_name, Will_be_crawled_by=future_crawler,target_crawled="no")
                     print(new_node)
                     print("printing url again")
                     print(url)
@@ -521,6 +522,12 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
    # html_rel = Relationship(new_node,"HTML text",html_text)
    # gp.create(html_rel)
     gp.commit()
+def get_the_available_crawlers():
+    crawlers = ["Crawler-2","Crawler-3","Crawler-4"]
+    return crawlers
+
+
+
 
 graph_database_location = "http://"+database+":7474/db/data/"
 graph = Graph(graph_database_location, user='neo4j', password='cns2202') # connect to the local graph database
@@ -546,6 +553,33 @@ chrome_options.binary_location = chromium_path
 
 browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options )
 # chrome options is to add the extension to the chrome as soon as it starts.
+check_crawler_name = get_crawler_name(remote_crawler)
+if check_crawler_name != "Crawler-1" and check_crawler_name != "local-computer":
+    statement = 'MATCH (n:New_Tab) WHERE ((n.Crawled_by="local-computer") AND (n.Will_be_crawled_by="'+check_crawler_name+'") AND (n.target_crawled="no"))  RETURN n.URL,n.PID'
+    urls=[]
+    pids=[]
+    cursor = gp.run(statement).data()
+    for each in cursor:
+        x = list(each.values())
+        if len(x[0]) > 7:
+            urls.append(x[0])
+            pids.append(x[1])
+        else:
+            urls.append(x[1])
+            pids.append(x[0])
+
+    target = urls[0]
+    update_pid = pids[0]
+
+    statement2 = 'MATCH (a:New_Tab) WHERE (a.PID="'+update_pid+'") SET a.target_crawled="yes" RETURN a'
+    updating = gp.run(statement2).data()
+    if len(updating) != 0:
+        print("The target crawler parameter was set to yes")
+else:
+    pass
+
+
+
 
 browser.get(target) # This open the target website
 browser.maximize_window() # By default the window is not maximised. This maximises the window
@@ -566,7 +600,8 @@ print("printing the initial draw graph details !")
 maintab_url = browser.current_url  # comparing if the crawler target is still the same else was there any change
 main_tab, survivors, gp, main_tab_pid = initial_draw_graph(initial_details, gp, initial_pid_details, maintab_url ) # Makes the initial Node for main tab
 gp = graph.begin()
-
+icname = ""
+x = get_the_available_crawlers()
 
 # Each coordinate is sent in loop and crawled
 for coordinate in coordinates:
@@ -583,9 +618,22 @@ for coordinate in coordinates:
         sleep(1)
         continue
     else:
+        #######################
+        # This section is to decide who will crawl this URL in future
+        try:
+            icname = x[0]
+            x.pop(0)
+        except IndexError:
+            x = get_the_available_crawlers()
+            icname = x[0]
+            x.pop(0)
+
+        ########################
+        print ("THE CRAWLER DEDICATED TO THIS NEW URL WILL BE ",icname)
         already_open = browser.window_handles
         details, url, duplicate, pid_details = get_tab_data(1, already_open)
-        draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid, pid_details ) # adds the nodes to the main node created
+
+        draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid, pid_details, icname ) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
 done = crawling_completed(main_tab,gp)
