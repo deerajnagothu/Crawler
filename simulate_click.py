@@ -22,8 +22,8 @@ pyautogui.FAILSAFE = False
 t = 75  # set a threshold value for origin points to click
 target = 'http://www.amazon.com' # taget website to crawl
 delete_graph_history = "no"
-database = "localhost"
-remote_crawler = "no"
+database = "192.168.100.53"
+remote_crawler = "yes"
 zoom_level = 4
 #####################################################
 def get_crawler_name(type): # this will check if the code is running in the remote machine or local
@@ -523,7 +523,7 @@ def draw_graph(gp, main_tab, old_survivors, details, url, duplicate, main_tab_pi
    # gp.create(html_rel)
     gp.commit()
 def get_the_available_crawlers():
-    crawlers = ["Crawler-2","Crawler-3","Crawler-4"]
+    crawlers = ["CRAWLER-2", "CRAWLER-3", "CRAWLER-4"]
     return crawlers
 
 
@@ -533,7 +533,7 @@ graph_database_location = "http://"+database+":7474/db/data/"
 graph = Graph(graph_database_location, user='neo4j', password='cns2202') # connect to the local graph database
 if delete_graph_history == "yes":
     graph.delete_all() # Delete all the previous made nodes and relationship
-
+    print("DATABASE PHUSSSSSSSSSSSSSS !")
 gp = graph.begin()
 
 coordinates = [] # create the list for coordinates
@@ -555,7 +555,7 @@ browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options )
 # chrome options is to add the extension to the chrome as soon as it starts.
 check_crawler_name = get_crawler_name(remote_crawler)
 if check_crawler_name != "Crawler-1" and check_crawler_name != "local-computer":
-    statement = 'MATCH (n:New_Tab) WHERE ((n.Crawled_by="local-computer") AND (n.Will_be_crawled_by="'+check_crawler_name+'") AND (n.target_crawled="no"))  RETURN n.URL,n.PID'
+    statement = 'MATCH (n:New_Tab) WHERE ((n.Crawled_by="CRAWLER-1") AND (n.Will_be_crawled_by="'+check_crawler_name+'") AND (n.target_crawled="no"))  RETURN n.URL,n.PID'
     urls=[]
     pids=[]
     cursor = gp.run(statement).data()

@@ -1,6 +1,6 @@
 from py2neo import Graph, Node, Relationship
 import sys
-graph_database_location = "http://127.0.0.1:7474/db/data/"
+graph_database_location = "http://192.168.100.53:7474/db/data/"
 graph = Graph(graph_database_location, user='neo4j', password='cns2202') # connect to the local graph database
 
 tx=graph.begin()
@@ -8,7 +8,7 @@ tx=graph.begin()
 statement = 'Match (a:Main_Tab)-[c:Crawling_Complete]->(b:Completed) WHERE ((a.Crawler="Crawler-1")) RETURN c'
 count=[]
 flag_detected = 0
-if (sys.argv[1] == "Crawler-1"):
+if (sys.argv[1] == "CRAWLER-1"):
     flag_detected = 1
 else:
     while True:
