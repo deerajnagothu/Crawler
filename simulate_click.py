@@ -554,7 +554,7 @@ chrome_options.binary_location = chromium_path
 browser=webdriver.Chrome(".\chromedriver.exe", chrome_options=chrome_options )
 # chrome options is to add the extension to the chrome as soon as it starts.
 check_crawler_name = get_crawler_name(remote_crawler)
-if check_crawler_name != "Crawler-1" and check_crawler_name != "local-computer":
+if check_crawler_name != "CRAWLER-1" and check_crawler_name != "local-computer":
     statement = 'MATCH (n:New_Tab) WHERE ((n.Crawled_by="CRAWLER-1") AND (n.Will_be_crawled_by="'+check_crawler_name+'") AND (n.target_crawled="no"))  RETURN n.URL,n.PID'
     urls=[]
     pids=[]
