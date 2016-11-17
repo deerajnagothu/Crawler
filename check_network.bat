@@ -1,5 +1,6 @@
 @echo off
 :TRYAGAIN
+ECHO Hello There my name is %ComputerName%
 ECHO Checking connection, please wait...
 PING -n 1 www.google.com | find "Reply from " >NUL
 IF NOT ERRORLEVEL 1 goto :SUCCESS
