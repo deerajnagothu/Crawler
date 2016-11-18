@@ -1,5 +1,6 @@
 from py2neo import Graph, Node, Relationship
 import sys
+from time import sleep
 graph_database_location = "http://192.168.100.53:7474/db/data/"
 graph = Graph(graph_database_location, user='neo4j', password='cns2202') # connect to the local graph database
 
@@ -12,6 +13,9 @@ if (sys.argv[1] == "CRAWLER-1"):
     flag_detected = 1
 else:
     while True:
+        print("Okay I am gonna sleep for 30 seconds and Check again")
+        sleep(30)
+        
         cursor=tx.run(statement).data()
         print(cursor)
         if(len(cursor) != 0):
