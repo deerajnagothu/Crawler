@@ -361,7 +361,9 @@ def zoom_out(scale):
     return True
 # This function is called when there is data collected about the initial status of the browser
 def crawling_completed(main_tab, gp, update_pid):
+
     complete_graph = None
+    print("Currently node testing before assignment",complete_graph)
     crawler = get_crawler_name(remote_crawler)
     timer = str(datetime.now())
     text = "Crawling completed by "+crawler
@@ -371,12 +373,13 @@ def crawling_completed(main_tab, gp, update_pid):
         rel = Relationship(main_tab, "Crawling_Complete", complete_graph)
         gp.create(rel)
     if crawler != "CRAWLER-1":
-        statement = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" a.PID="'+update_pid+'") SET a.target_crawled="yes" RETURN a'
+        statement = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" AND a.PID="'+update_pid+'") SET a.target_crawled="yes" RETURN a'
         updating = gp.run(statement).data()
         if len(updating) != 0:
             print("The target crawler parameter was set to yes")
-
-        connecting_parent = Relationship(main_tab, "Parent Node", updating)
+        statement2 = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" AND a.PID="'+update_pid+'") RETURN a'
+        child_node = gp.run(statement2)
+        connecting_parent = Relationship(main_tab, "Parent Node", child_node)
         gp.create(connecting_parent)
     gp.commit()
     return True
