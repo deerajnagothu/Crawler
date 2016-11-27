@@ -1,7 +1,6 @@
 # Author: Deeraj Nagothu, MS in ECE @Binghamton University
 # Internet Crawler
 import pyautogui
-import random
 import sys
 import psutil
 import random
@@ -91,7 +90,7 @@ def capture_system_new_process(process_before_click, new_page_node, gp):
 
 
 
-def get_tab_data(flag, already_open):  #  open the new tab for memory data and get data
+def get_tab_data(flag, already_open):  # open the new tab for memory data and get data
     if flag == 1:
         duplicate = 0 # declaring the default value for tab having similar PID detection
         print("Entered the get tab data function")
@@ -361,15 +360,24 @@ def zoom_out(scale):
     pyautogui.keyUp('ctrlleft')
     return True
 # This function is called when there is data collected about the initial status of the browser
-def crawling_completed(main_tab, gp):
+def crawling_completed(main_tab, gp, update_pid):
     complete_graph = None
     crawler = get_crawler_name(remote_crawler)
+    timer = str(datetime.now())
     text = "Crawling completed by "+crawler
-    complete_graph = Node("Completed", details=text, name=crawler)
+    complete_graph = Node("Completed", details=text, name=crawler, time=timer)
     gp.create(complete_graph)
     if complete_graph is not None:
         rel = Relationship(main_tab, "Crawling_Complete", complete_graph)
         gp.create(rel)
+    if crawler != "CRAWLER-1":
+        statement = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" a.PID="'+update_pid+'") SET a.target_crawled="yes" RETURN a'
+        updating = gp.run(statement).data()
+        if len(updating) != 0:
+            print("The target crawler parameter was set to yes")
+
+        connecting_parent = Relationship(main_tab, "Parent Node", updating)
+        gp.create(connecting_parent)
     gp.commit()
     return True
 
@@ -533,7 +541,7 @@ graph_database_location = "http://"+database+":7474/db/data/"
 graph = Graph(graph_database_location, user='neo4j', password='cns2202') # connect to the local graph database
 if delete_graph_history == "yes":
     graph.delete_all() # Delete all the previous made nodes and relationship
-    print("DATABASE PHUSSSSSSSSSSSSSS !")
+    print("DATABASE DELETED !")
 gp = graph.begin()
 
 coordinates = [] # create the list for coordinates
@@ -571,11 +579,9 @@ if check_crawler_name != "CRAWLER-1" and check_crawler_name != "local-computer":
     target = urls[0]
     update_pid = pids[0]
 
-    statement2 = 'MATCH (a:New_Tab) WHERE (a.PID="'+update_pid+'") SET a.target_crawled="yes" RETURN a'
-    updating = gp.run(statement2).data()
-    if len(updating) != 0:
-        print("The target crawler parameter was set to yes")
+
 else:
+    update_pid = "0"
     pass
 
 
@@ -636,6 +642,6 @@ for coordinate in coordinates:
         draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid, pid_details, icname ) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
-done = crawling_completed(main_tab,gp)
+done = crawling_completed(main_tab, gp, update_pid)
 if done is True:
     print("CRAWLING SUCCESSFULLY FINISHED !")
