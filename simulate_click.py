@@ -4,6 +4,7 @@ import pyautogui
 import sys
 import psutil
 import random
+import subprocess
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -360,7 +361,7 @@ def zoom_out(scale):
     pyautogui.keyUp('ctrlleft')
     return True
 # This function is called when there is data collected about the initial status of the browser
-def crawling_completed(main_tab, gp, update_pid):
+def crawling_completed(main_tab, gp, update_pid, mtab_pid, mtab_url):
 
     complete_graph = None
     print("Currently node testing before assignment",complete_graph)
@@ -377,10 +378,10 @@ def crawling_completed(main_tab, gp, update_pid):
         updating = gp.run(statement).data()
         if len(updating) != 0:
             print("The target crawler parameter was set to yes")
-        statement2 = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" AND a.PID="'+update_pid+'") RETURN a'
+        statement2 = 'MATCH (a:Main_Tab),(b:New_Tab) WHERE (a.Crawler="'+crawler+'" AND a.PID="'+mtab_pid+'" AND a.Main_URL="'+mtab_url+'" AND b.Crawled_by="CRAWLER-1" AND b.PID="'+update_pid+'") CREATE (b)-[:`Parent_Node`]->(a)'
         child_node = gp.run(statement2)
-        connecting_parent = Relationship(main_tab, "Parent Node", child_node)
-        gp.create(connecting_parent)
+        # connecting_parent = Relationship(main_tab, "Parent Node", child_node)
+        # gp.create(connecting_parent)
     gp.commit()
     return True
 
@@ -578,10 +579,11 @@ if check_crawler_name != "CRAWLER-1" and check_crawler_name != "local-computer":
         else:
             urls.append(x[1])
             pids.append(x[0])
-
-    target = urls[0]
-    update_pid = pids[0]
-
+    try:
+        target = urls[0]
+        update_pid = pids[0]
+    except IndexError:
+        subprocess.call(["shutdown", "/s", "00"])
 
 else:
     update_pid = "0"
@@ -645,6 +647,6 @@ for coordinate in coordinates:
         draw_graph(gp, main_tab, survivors, details, url, duplicate, main_tab_pid, pid_details, icname ) # adds the nodes to the main node created
         gp = graph.begin()
         sleep(2)
-done = crawling_completed(main_tab, gp, update_pid)
+done = crawling_completed(main_tab, gp, update_pid, main_tab_pid,maintab_url)
 if done is True:
     print("CRAWLING SUCCESSFULLY FINISHED !")
