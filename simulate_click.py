@@ -374,11 +374,11 @@ def crawling_completed(main_tab, gp, update_pid, mtab_pid, mtab_url):
         rel = Relationship(main_tab, "Crawling_Complete", complete_graph)
         gp.create(rel)
     if crawler != "CRAWLER-1":
-        statement = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" AND a.PID="'+update_pid+'") SET a.target_crawled="yes" RETURN a'
+        statement = 'MATCH (a:New_Tab) WHERE (a.Crawled_by="CRAWLER-1" AND a.PID="'+update_pid+'" AND a.Will_be_crawled_by="'+crawler+'" AND a.URL="'+mtab_url+'")  SET a.target_crawled="yes" RETURN a'
         updating = gp.run(statement).data()
         if len(updating) != 0:
             print("The target crawler parameter was set to yes")
-        statement2 = 'MATCH (a:Main_Tab),(b:New_Tab) WHERE (a.Crawler="'+crawler+'" AND a.PID="'+mtab_pid+'" AND a.Main_URL="'+mtab_url+'" AND b.Crawled_by="CRAWLER-1" AND b.PID="'+update_pid+'") CREATE (b)-[:`Parent_Node`]->(a)'
+        statement2 = 'MATCH (a:Main_Tab),(b:New_Tab) WHERE (a.Crawler="'+crawler+'" AND a.PID="'+mtab_pid+'" AND a.Main_URL="'+mtab_url+'" AND b.Crawled_by="CRAWLER-1" AND b.PID="'+update_pid+'" AND b.Will_be_crawled_by="'+crawler+'" AND b.URL="'+mtab_url+'" AND b.target_crawled="yes") CREATE (b)-[:`Parent_Node`]->(a)'
         child_node = gp.run(statement2)
         # connecting_parent = Relationship(main_tab, "Parent Node", child_node)
         # gp.create(connecting_parent)

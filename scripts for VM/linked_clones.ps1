@@ -27,6 +27,13 @@ function Wait-A-Min{
             Yo ""
     }
 }
+function GetStudentVMName
+{
+    param([string]$OriginVM,
+            [int]$index)
+    $result=$OriginVM+"_"+$StudentVAppPostfix+"_"+$index
+    $result
+}
 #########################
 
 
@@ -65,7 +72,7 @@ ForEach ( $index in $indicies)
     }
 }
 Wait-A-Min -Time 1
-
+exit
 Start-VApp -VApp $ContainerVAppName
 
 exit
