@@ -17,10 +17,10 @@ IF NOT ERRORLEVEL 1 goto :DONE
 IF 	   ERRORLEVEL 1 goto :NOTDONE
 :DONE
 ECHO RESTING IN PEACE
-shutdown.exe /r /t 00
+shutdown.exe /r /t 60
 pause
 
 :NOTDONE
-shutdown.exe /r /t 00
+shutdown.exe /r /t 60
 ECHO Something Just failed ! Gonna Retry 
 pause

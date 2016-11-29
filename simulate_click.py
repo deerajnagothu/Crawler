@@ -22,8 +22,8 @@ pyautogui.FAILSAFE = False
 t = 75  # set a threshold value for origin points to click
 target = 'http://www.amazon.com' # taget website to crawl
 delete_graph_history = "no"
-database = "192.168.100.53"
-remote_crawler = "yes"
+database = "localhost"
+remote_crawler = "no"
 zoom_level = 4
 #####################################################
 def get_crawler_name(type): # this will check if the code is running in the remote machine or local
@@ -583,7 +583,7 @@ if check_crawler_name != "CRAWLER-1" and check_crawler_name != "local-computer":
         target = urls[0]
         update_pid = pids[0]
     except IndexError:
-        subprocess.call(["shutdown", "/s", "00"])
+        subprocess.call(["shutdown", "/s"])
 
 else:
     update_pid = "0"
