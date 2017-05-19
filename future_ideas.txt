@@ -35,3 +35,5 @@
 
 8) Heatmaps can be used to generate coordiantes using image processing. Take a screenshot and then using image processing
    generate coordinates based on where the contents are
+
+9) Use low interaction client for redirection link analysis and detection fraudulent rings.

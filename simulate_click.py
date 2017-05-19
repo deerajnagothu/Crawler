@@ -1,4 +1,4 @@
-# Author: Deeraj Nagothu, MS in ECE @Binghamton University
+# Author: Deeraj Nagothu, Phd in ECE @Binghamton University
 # Internet Crawler
 import pyautogui
 import sys
